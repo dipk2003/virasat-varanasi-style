@@ -199,6 +199,11 @@ const AdminProducts = () => {
                     {p.is_active ? "Active" : "Inactive"}
                   </span>
                 </td>
+                <td className="p-4">
+                  <button onClick={() => startEdit(p)} className="p-1.5 text-accent hover:bg-accent/10 transition-colors">
+                    <Pencil size={14} />
+                  </button>
+                </td>
               </tr>
             ))}
           </tbody>
