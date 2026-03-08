@@ -15,6 +15,7 @@ interface CartItem {
     images: string[];
     stock_quantity: number;
   };
+  variant_price?: number;
 }
 
 interface CartContextType {
@@ -59,7 +60,27 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
       .from("cart_items")
       .select("*, product:products(name, price, images, stock_quantity)")
       .eq("user_id", user.id);
-    setItems((data as any[]) || []);
+
+    // Fetch variant prices for each cart item
+    const cartItems = (data as any[]) || [];
+    const enriched = await Promise.all(
+      cartItems.map(async (item) => {
+        if (item.size || item.color) {
+          const { data: variant } = await supabase
+            .from("product_variants")
+            .select("price_override")
+            .eq("product_id", item.product_id)
+            .eq("size", item.size || "")
+            .eq("color", item.color || "")
+            .eq("is_active", true)
+            .maybeSingle();
+          return { ...item, variant_price: variant?.price_override ?? null };
+        }
+        return item;
+      })
+    );
+
+    setItems(enriched);
     setLoading(false);
   };
 
@@ -107,7 +128,10 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const cartCount = items.reduce((sum, i) => sum + i.quantity, 0);
-  const cartTotal = items.reduce((sum, i) => sum + (i.product?.price || 0) * i.quantity, 0);
+  const cartTotal = items.reduce((sum, i) => {
+    const price = i.variant_price ?? i.product?.price ?? 0;
+    return sum + price * i.quantity;
+  }, 0);
 
   return (
     <CartContext.Provider value={{ items, loading, addToCart, removeFromCart, updateQuantity, clearCart, cartCount, cartTotal, isCartOpen, setIsCartOpen }}>
