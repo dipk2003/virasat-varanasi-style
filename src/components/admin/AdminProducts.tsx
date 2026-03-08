@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Plus, AlertTriangle, Pencil } from "lucide-react";
+import ImageUpload from "./ImageUpload";
 
 const AdminProducts = () => {
   const { toast } = useToast();
@@ -9,11 +10,13 @@ const AdminProducts = () => {
   const [categories, setCategories] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
+  const [editingProduct, setEditingProduct] = useState<any>(null);
   const [form, setForm] = useState({
     name: "", slug: "", description: "", price: "", compare_at_price: "",
     stock_quantity: "0", category_id: "", fabric: "", sizes: "S,M,L,XL",
     colors: "", is_active: true, is_featured: false,
   });
+  const [images, setImages] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
 
   const fetchData = async () => {
@@ -28,11 +31,34 @@ const AdminProducts = () => {
 
   useEffect(() => { fetchData(); }, []);
 
+  const resetForm = () => {
+    setForm({
+      name: "", slug: "", description: "", price: "", compare_at_price: "",
+      stock_quantity: "0", category_id: "", fabric: "", sizes: "S,M,L,XL",
+      colors: "", is_active: true, is_featured: false,
+    });
+    setImages([]);
+    setEditingProduct(null);
+  };
+
+  const startEdit = (p: any) => {
+    setEditingProduct(p);
+    setForm({
+      name: p.name, slug: p.slug, description: p.description || "",
+      price: String(p.price), compare_at_price: p.compare_at_price ? String(p.compare_at_price) : "",
+      stock_quantity: String(p.stock_quantity), category_id: p.category_id || "",
+      fabric: p.fabric || "", sizes: (p.sizes || []).join(","),
+      colors: (p.colors || []).join(","), is_active: p.is_active, is_featured: p.is_featured,
+    });
+    setImages(p.images || []);
+    setShowForm(true);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
     const slug = form.slug || form.name.toLowerCase().replace(/\s+/g, "-");
-    const { error } = await supabase.from("products").insert({
+    const payload = {
       name: form.name,
       slug,
       description: form.description,
@@ -45,13 +71,23 @@ const AdminProducts = () => {
       colors: form.colors ? form.colors.split(",").map((s) => s.trim()) : [],
       is_active: form.is_active,
       is_featured: form.is_featured,
-    });
+      images,
+    };
+
+    let error;
+    if (editingProduct) {
+      ({ error } = await supabase.from("products").update(payload).eq("id", editingProduct.id));
+    } else {
+      ({ error } = await supabase.from("products").insert(payload));
+    }
+
     setSaving(false);
     if (error) {
       toast({ title: "Error", description: error.message, variant: "destructive" });
     } else {
-      toast({ title: "Product added!" });
+      toast({ title: editingProduct ? "Product updated!" : "Product added!" });
       setShowForm(false);
+      resetForm();
       fetchData();
     }
   };
@@ -62,7 +98,7 @@ const AdminProducts = () => {
     <div>
       <div className="flex items-center justify-between mb-6">
         <h2 className="font-display text-3xl font-light text-foreground">Products</h2>
-        <button onClick={() => setShowForm(!showForm)} className="flex items-center gap-2 px-6 py-2 bg-accent text-accent-foreground font-ui text-xs tracking-[0.2em] uppercase hover:bg-gold-dark transition-colors">
+        <button onClick={() => { if (showForm) { resetForm(); } setShowForm(!showForm); }} className="flex items-center gap-2 px-6 py-2 bg-accent text-accent-foreground font-ui text-xs tracking-[0.2em] uppercase hover:bg-gold-dark transition-colors">
           <Plus size={16} /> {showForm ? "Cancel" : "Add Product"}
         </button>
       </div>
@@ -111,8 +147,11 @@ const AdminProducts = () => {
             />
           </div>
           <div className="sm:col-span-2">
+            <ImageUpload images={images} onChange={setImages} />
+          </div>
+          <div className="sm:col-span-2">
             <button type="submit" disabled={saving} className="px-8 py-3 bg-accent text-accent-foreground font-ui text-sm tracking-[0.2em] uppercase hover:bg-gold-dark transition-colors disabled:opacity-50">
-              {saving ? "Saving..." : "Add Product"}
+              {saving ? "Saving..." : editingProduct ? "Update Product" : "Add Product"}
             </button>
           </div>
         </form>
@@ -123,17 +162,22 @@ const AdminProducts = () => {
         <table className="w-full">
           <thead>
             <tr className="border-b border-border">
-              {["Product", "Category", "Price", "Stock", "Status"].map((h) => (
-                <th key={h} className="text-left p-4 font-ui text-xs tracking-wider uppercase text-muted-foreground">{h}</th>
+              {["", "Product", "Category", "Price", "Stock", "Status", ""].map((h, i) => (
+                <th key={i} className="text-left p-4 font-ui text-xs tracking-wider uppercase text-muted-foreground">{h}</th>
               ))}
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
             {products.map((p) => (
               <tr key={p.id} className="hover:bg-muted/50 transition-colors">
+                <td className="p-4 w-16">
+                  {p.images?.[0] ? (
+                    <img src={p.images[0]} alt={p.name} className="w-12 h-12 object-cover" />
+                  ) : (
+                    <div className="w-12 h-12 bg-muted flex items-center justify-center text-muted-foreground text-xs">No img</div>
+                  )}
+                </td>
                 <td className="p-4">
-                  <p className="font-display text-sm text-foreground">{p.name}</p>
-                  <p className="font-body text-xs text-muted-foreground">{p.fabric}</p>
                 </td>
                 <td className="p-4 font-body text-sm text-muted-foreground">{p.category?.name || "—"}</td>
                 <td className="p-4">
@@ -154,6 +198,11 @@ const AdminProducts = () => {
                   <span className={`font-ui text-[10px] tracking-wider px-2 py-1 ${p.is_active ? "text-green-600 bg-green-50" : "text-red-600 bg-red-50"}`}>
                     {p.is_active ? "Active" : "Inactive"}
                   </span>
+                </td>
+                <td className="p-4">
+                  <button onClick={() => startEdit(p)} className="p-1.5 text-accent hover:bg-accent/10 transition-colors">
+                    <Pencil size={14} />
+                  </button>
                 </td>
               </tr>
             ))}
