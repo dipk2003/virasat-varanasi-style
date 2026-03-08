@@ -80,7 +80,10 @@ const Navbar = () => {
             <button className="text-foreground/70 hover:text-accent transition-colors">
               <Search size={20} />
             </button>
-            <button className="text-foreground/70 hover:text-accent transition-colors">
+            <button
+              className="text-foreground/70 hover:text-accent transition-colors"
+              onClick={() => navigate(user ? (isAdmin ? "/admin" : "/dashboard") : "/auth")}
+            >
               <User size={20} />
             </button>
             <button className="text-foreground/70 hover:text-accent transition-colors relative">
