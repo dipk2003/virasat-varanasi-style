@@ -64,7 +64,7 @@ const CartDrawer = () => {
                           {item.size && `Size: ${item.size}`} {item.color && `• ${item.color}`}
                         </p>
                       )}
-                      <p className="font-ui text-sm font-medium text-foreground mt-1">₹{item.product?.price}</p>
+                      <p className="font-ui text-sm font-medium text-foreground mt-1">₹{(item.variant_price ?? item.product?.price)?.toLocaleString("en-IN")}</p>
                       <div className="flex items-center gap-2 mt-2">
                         <button
                           onClick={() => updateQuantity(item.id, item.quantity - 1)}
