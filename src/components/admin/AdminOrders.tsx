@@ -14,7 +14,6 @@ const AdminOrders = () => {
     let q = supabase.from("orders").select("*, order_items(*)").order("created_at", { ascending: false });
     if (filter !== "all") q = q.eq("status", filter as any);
     const { data } = await q;
-    const { data } = await q;
     setOrders(data || []);
     setLoading(false);
   };
