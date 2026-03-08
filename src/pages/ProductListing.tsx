@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from "react";
 import { motion, useInView, AnimatePresence, useScroll, useTransform } from "framer-motion";
-import { useSearchParams, Link } from "react-router-dom";
+import { useSearchParams, Link, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useCart } from "@/contexts/CartContext";
 import { useAuth } from "@/contexts/AuthContext";
@@ -27,6 +27,7 @@ const ProductListing = () => {
   const [hoveredProduct, setHoveredProduct] = useState<string | null>(null);
   const { addToCart } = useCart();
   const { user } = useAuth();
+  const navigate = useNavigate();
 
   const selectedCategory = searchParams.get("category") || "";
   const selectedFabric = searchParams.get("fabric") || "";
@@ -309,6 +310,7 @@ const ProductListing = () => {
                     exit={{ opacity: 0, scale: 0.9 }}
                     transition={{ duration: 0.5, delay: i * 0.06 }}
                     className="group cursor-pointer"
+                    onClick={() => navigate(`/product/${product.slug}`)}
                     onMouseEnter={() => setHoveredProduct(product.id)}
                     onMouseLeave={() => setHoveredProduct(null)}
                   >
