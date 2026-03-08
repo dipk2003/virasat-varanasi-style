@@ -4,10 +4,13 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
+import { CartProvider } from "@/contexts/CartContext";
+import { AnimatePresence } from "framer-motion";
 import Index from "./pages/Index";
 import AuthPage from "./pages/AuthPage";
 import UserDashboard from "./pages/UserDashboard";
 import AdminDashboard from "./pages/AdminDashboard";
+import ProductListing from "./pages/ProductListing";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -34,13 +37,18 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <AuthProvider>
-          <Routes>
-            <Route path="/" element={<Index />} />
-            <Route path="/auth" element={<AuthPage />} />
-            <Route path="/dashboard" element={<ProtectedRoute><UserDashboard /></ProtectedRoute>} />
-            <Route path="/admin" element={<AdminRoute><AdminDashboard /></AdminRoute>} />
-            <Route path="*" element={<NotFound />} />
-          </Routes>
+          <CartProvider>
+            <AnimatePresence mode="wait">
+              <Routes>
+                <Route path="/" element={<Index />} />
+                <Route path="/auth" element={<AuthPage />} />
+                <Route path="/shop" element={<ProductListing />} />
+                <Route path="/dashboard" element={<ProtectedRoute><UserDashboard /></ProtectedRoute>} />
+                <Route path="/admin" element={<AdminRoute><AdminDashboard /></AdminRoute>} />
+                <Route path="*" element={<NotFound />} />
+              </Routes>
+            </AnimatePresence>
+          </CartProvider>
         </AuthProvider>
       </BrowserRouter>
     </TooltipProvider>
