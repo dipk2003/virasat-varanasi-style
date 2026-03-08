@@ -319,6 +319,56 @@ export type Database = {
         }
         Relationships: []
       }
+      product_variants: {
+        Row: {
+          color: string | null
+          compare_at_price_override: number | null
+          created_at: string
+          id: string
+          is_active: boolean
+          price_override: number | null
+          product_id: string
+          size: string | null
+          sku: string | null
+          stock_quantity: number
+          updated_at: string
+        }
+        Insert: {
+          color?: string | null
+          compare_at_price_override?: number | null
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          price_override?: number | null
+          product_id: string
+          size?: string | null
+          sku?: string | null
+          stock_quantity?: number
+          updated_at?: string
+        }
+        Update: {
+          color?: string | null
+          compare_at_price_override?: number | null
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          price_override?: number | null
+          product_id?: string
+          size?: string | null
+          sku?: string | null
+          stock_quantity?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_variants_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       products: {
         Row: {
           category_id: string | null
@@ -540,6 +590,10 @@ export type Database = {
     Functions: {
       decrement_stock: {
         Args: { p_product_id: string; p_quantity: number }
+        Returns: undefined
+      }
+      decrement_variant_stock: {
+        Args: { p_quantity: number; p_variant_id: string }
         Returns: undefined
       }
       has_role: {

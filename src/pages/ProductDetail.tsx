@@ -246,6 +246,7 @@ const ProductDetail = () => {
   const { slug } = useParams<{ slug: string }>();
   const navigate = useNavigate();
   const [product, setProduct] = useState<any>(null);
+  const [variants, setVariants] = useState<any[]>([]);
   const [reviews, setReviews] = useState<any[]>([]);
   const [relatedProducts, setRelatedProducts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -258,6 +259,15 @@ const ProductDetail = () => {
   const [sizeChartOpen, setSizeChartOpen] = useState(false);
   const { addToCart } = useCart();
   const { user } = useAuth();
+
+  // Get active variant for selected size/color
+  const activeVariant = variants.find(
+    (v) => v.size === selectedSize && v.color === selectedColor && v.is_active
+  );
+  const displayPrice = activeVariant?.price_override ?? product?.price ?? 0;
+  const displayComparePrice = activeVariant?.compare_at_price_override ?? product?.compare_at_price;
+  const variantStock = activeVariant ? activeVariant.stock_quantity : product?.stock_quantity ?? 0;
+  const hasVariants = variants.length > 0;
 
   useEffect(() => {
     const fetchProduct = async () => {
@@ -274,12 +284,14 @@ const ProductDetail = () => {
       setSelectedSize(data.sizes?.[0] || "");
       setSelectedColor(data.colors?.[0] || "");
 
-      const [reviewsRes, relatedRes] = await Promise.all([
+      const [reviewsRes, relatedRes, variantsRes] = await Promise.all([
         supabase.from("reviews").select("*").eq("product_id", data.id).eq("is_approved", true).order("created_at", { ascending: false }).limit(10),
         supabase.from("products").select("*, category:categories(name, slug)").eq("category_id", data.category_id).neq("id", data.id).eq("is_active", true).limit(4),
+        supabase.from("product_variants").select("*").eq("product_id", data.id).eq("is_active", true),
       ]);
       setReviews(reviewsRes.data || []);
       setRelatedProducts(relatedRes.data || []);
+      setVariants(variantsRes.data || []);
 
       if (user) {
         const { data: wl } = await supabase.from("wishlist").select("id").eq("user_id", user.id).eq("product_id", data.id).maybeSingle();
@@ -341,7 +353,7 @@ const ProductDetail = () => {
     );
   }
 
-  const discount = product.compare_at_price ? Math.round((1 - product.price / product.compare_at_price) * 100) : 0;
+  const discount = displayComparePrice ? Math.round((1 - displayPrice / displayComparePrice) * 100) : 0;
   const hasMultipleImages = product.images && product.images.length > 1;
 
   return (
@@ -456,12 +468,17 @@ const ProductDetail = () => {
 
               {/* Price */}
               <div className="flex items-baseline gap-3 mb-6">
-                <span className="font-display text-3xl text-foreground">₹{product.price.toLocaleString("en-IN")}</span>
-                {product.compare_at_price && (
-                  <span className="font-ui text-lg text-muted-foreground line-through">₹{product.compare_at_price.toLocaleString("en-IN")}</span>
+                <span className="font-display text-3xl text-foreground">₹{displayPrice.toLocaleString("en-IN")}</span>
+                {displayComparePrice && (
+                  <span className="font-ui text-lg text-muted-foreground line-through">₹{displayComparePrice.toLocaleString("en-IN")}</span>
                 )}
                 {discount > 0 && (
                   <span className="font-ui text-xs font-semibold text-primary bg-primary/10 px-2 py-0.5">Save {discount}%</span>
+                )}
+                {hasVariants && activeVariant && (
+                  <span className="font-ui text-[10px] tracking-wider text-muted-foreground">
+                    ({activeVariant.stock_quantity} in stock)
+                  </span>
                 )}
               </div>
 
@@ -544,11 +561,11 @@ const ProductDetail = () => {
                   whileHover={{ scale: 1.02, boxShadow: "0 0 25px hsl(var(--gold) / 0.2)" }}
                   whileTap={{ scale: 0.98 }}
                   onClick={handleAddToCart}
-                  disabled={product.stock_quantity === 0}
+                  disabled={variantStock === 0}
                   className="flex-1 h-12 bg-accent text-accent-foreground font-ui text-sm tracking-[0.2em] uppercase flex items-center justify-center gap-2 hover:bg-accent/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <ShoppingBag size={18} />
-                  {product.stock_quantity === 0 ? "Sold Out" : "Add to Bag"}
+                  {variantStock === 0 ? "Sold Out" : "Add to Bag"}
                 </motion.button>
                 <motion.button
                   whileHover={{ scale: 1.1 }}
@@ -560,14 +577,14 @@ const ProductDetail = () => {
                 </motion.button>
               </div>
 
-              {product.stock_quantity > 0 && product.stock_quantity <= product.low_stock_threshold && (
+              {variantStock > 0 && variantStock <= (product.low_stock_threshold || 5) && (
                 <motion.p
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   className="font-ui text-xs text-destructive tracking-wider mb-6 flex items-center gap-1"
                 >
                   <span className="w-2 h-2 bg-destructive rounded-full animate-pulse" />
-                  Only {product.stock_quantity} left in stock — order soon!
+                  Only {variantStock} left in stock — order soon!
                 </motion.p>
               )}
 

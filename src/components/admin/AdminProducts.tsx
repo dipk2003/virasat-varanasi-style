@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Plus, AlertTriangle, Pencil } from "lucide-react";
 import ImageUpload from "./ImageUpload";
+import VariantManager from "./VariantManager";
 
 const AdminProducts = () => {
   const { toast } = useToast();
@@ -155,6 +156,27 @@ const AdminProducts = () => {
             </button>
           </div>
         </form>
+      )}
+
+      {/* Variant Manager for editing product */}
+      {editingProduct && !showForm && (
+        <div className="mb-6">
+          <VariantManager
+            productId={editingProduct.id}
+            sizes={(editingProduct.sizes || []) as string[]}
+            colors={(editingProduct.colors || []) as string[]}
+          />
+        </div>
+      )}
+
+      {editingProduct && showForm && (
+        <div className="mb-6">
+          <VariantManager
+            productId={editingProduct.id}
+            sizes={form.sizes.split(",").map((s) => s.trim()).filter(Boolean)}
+            colors={form.colors ? form.colors.split(",").map((s) => s.trim()).filter(Boolean) : []}
+          />
+        </div>
       )}
 
       {/* Products Table */}
