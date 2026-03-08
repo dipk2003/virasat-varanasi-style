@@ -1,6 +1,8 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Menu, X, ShoppingBag, Search, User } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "@/contexts/AuthContext";
 import logo from "@/assets/logo.png";
 
 const navLinks = [
@@ -14,6 +16,8 @@ const navLinks = [
 const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
+  const { user, isAdmin } = useAuth();
+  const navigate = useNavigate();
 
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 50);
@@ -76,7 +80,10 @@ const Navbar = () => {
             <button className="text-foreground/70 hover:text-accent transition-colors">
               <Search size={20} />
             </button>
-            <button className="text-foreground/70 hover:text-accent transition-colors">
+            <button
+              className="text-foreground/70 hover:text-accent transition-colors"
+              onClick={() => navigate(user ? (isAdmin ? "/admin" : "/dashboard") : "/auth")}
+            >
               <User size={20} />
             </button>
             <button className="text-foreground/70 hover:text-accent transition-colors relative">
