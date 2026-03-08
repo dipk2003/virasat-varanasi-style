@@ -246,6 +246,7 @@ const ProductDetail = () => {
   const { slug } = useParams<{ slug: string }>();
   const navigate = useNavigate();
   const [product, setProduct] = useState<any>(null);
+  const [variants, setVariants] = useState<any[]>([]);
   const [reviews, setReviews] = useState<any[]>([]);
   const [relatedProducts, setRelatedProducts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -258,6 +259,15 @@ const ProductDetail = () => {
   const [sizeChartOpen, setSizeChartOpen] = useState(false);
   const { addToCart } = useCart();
   const { user } = useAuth();
+
+  // Get active variant for selected size/color
+  const activeVariant = variants.find(
+    (v) => v.size === selectedSize && v.color === selectedColor && v.is_active
+  );
+  const displayPrice = activeVariant?.price_override ?? product?.price ?? 0;
+  const displayComparePrice = activeVariant?.compare_at_price_override ?? product?.compare_at_price;
+  const variantStock = activeVariant ? activeVariant.stock_quantity : product?.stock_quantity ?? 0;
+  const hasVariants = variants.length > 0;
 
   useEffect(() => {
     const fetchProduct = async () => {
@@ -274,12 +284,14 @@ const ProductDetail = () => {
       setSelectedSize(data.sizes?.[0] || "");
       setSelectedColor(data.colors?.[0] || "");
 
-      const [reviewsRes, relatedRes] = await Promise.all([
+      const [reviewsRes, relatedRes, variantsRes] = await Promise.all([
         supabase.from("reviews").select("*").eq("product_id", data.id).eq("is_approved", true).order("created_at", { ascending: false }).limit(10),
         supabase.from("products").select("*, category:categories(name, slug)").eq("category_id", data.category_id).neq("id", data.id).eq("is_active", true).limit(4),
+        supabase.from("product_variants").select("*").eq("product_id", data.id).eq("is_active", true),
       ]);
       setReviews(reviewsRes.data || []);
       setRelatedProducts(relatedRes.data || []);
+      setVariants(variantsRes.data || []);
 
       if (user) {
         const { data: wl } = await supabase.from("wishlist").select("id").eq("user_id", user.id).eq("product_id", data.id).maybeSingle();
@@ -341,7 +353,7 @@ const ProductDetail = () => {
     );
   }
 
-  const discount = product.compare_at_price ? Math.round((1 - product.price / product.compare_at_price) * 100) : 0;
+  const discount = displayComparePrice ? Math.round((1 - displayPrice / displayComparePrice) * 100) : 0;
   const hasMultipleImages = product.images && product.images.length > 1;
 
   return (
