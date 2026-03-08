@@ -93,6 +93,7 @@ const AdminDashboard = () => {
           >
             {activeTab === "overview" && <AdminOverview />}
             {activeTab === "products" && <AdminProducts />}
+            {activeTab === "inventory" && <AdminInventory />}
             {activeTab === "orders" && <AdminOrders />}
             {activeTab === "coupons" && <AdminCoupons />}
             {activeTab === "custom-designs" && <AdminCustomDesigns />}
