@@ -152,13 +152,9 @@ const Checkout = () => {
       const { error: itemsError } = await supabase.from("order_items").insert(orderItems);
       if (itemsError) throw itemsError;
 
-      // Update stock
+      // Decrement stock via security definer function
       for (const item of items) {
-        await supabase.rpc("has_role", { _user_id: user.id, _role: "user" }); // dummy call
-        await supabase
-          .from("products")
-          .update({ stock_quantity: Math.max(0, (item.product?.stock_quantity || 0) - item.quantity) })
-          .eq("id", item.product_id);
+        await supabase.rpc("decrement_stock" as any, { p_product_id: item.product_id, p_quantity: item.quantity });
       }
 
       await clearCart();
