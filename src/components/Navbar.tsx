@@ -14,7 +14,7 @@ const navLinks = [
   { label: "Sale", href: "/#sale" },
 ];
 
-const Navbar = () => {
+const Navbar = ({ onSearchOpen }: { onSearchOpen?: () => void }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const { user, isAdmin } = useAuth();
@@ -102,6 +102,7 @@ const Navbar = () => {
               whileHover={{ scale: 1.1 }}
               whileTap={{ scale: 0.95 }}
               className="text-foreground/70 hover:text-accent transition-colors"
+              onClick={onSearchOpen}
             >
               <Search size={20} />
             </motion.button>

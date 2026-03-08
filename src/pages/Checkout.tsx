@@ -157,6 +157,11 @@ const Checkout = () => {
         await supabase.rpc("decrement_stock" as any, { p_product_id: item.product_id, p_quantity: item.quantity });
       }
 
+      // Send order confirmation notification
+      await supabase.functions.invoke("order-notifications", {
+        body: { order_id: order.id, type: "order_confirmed" },
+      });
+
       await clearCart();
       setOrderNumber(order.order_number);
       setOrderPlaced(true);
