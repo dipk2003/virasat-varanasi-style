@@ -14,10 +14,12 @@ import AdminCoupons from "@/components/admin/AdminCoupons";
 import AdminCustomDesigns from "@/components/admin/AdminCustomDesigns";
 import AdminReviews from "@/components/admin/AdminReviews";
 import AdminCustomers from "@/components/admin/AdminCustomers";
+import AdminInventory from "@/components/admin/AdminInventory";
 
 const tabs = [
   { id: "overview", label: "Overview", icon: LayoutDashboard },
   { id: "products", label: "Products", icon: Package },
+  { id: "inventory", label: "Inventory", icon: BarChart3 },
   { id: "orders", label: "Orders", icon: ShoppingCart },
   { id: "coupons", label: "Coupons", icon: Tag },
   { id: "custom-designs", label: "Custom Designs", icon: Palette },
@@ -91,6 +93,7 @@ const AdminDashboard = () => {
           >
             {activeTab === "overview" && <AdminOverview />}
             {activeTab === "products" && <AdminProducts />}
+            {activeTab === "inventory" && <AdminInventory />}
             {activeTab === "orders" && <AdminOrders />}
             {activeTab === "coupons" && <AdminCoupons />}
             {activeTab === "custom-designs" && <AdminCustomDesigns />}
