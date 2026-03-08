@@ -147,8 +147,11 @@ const AdminProducts = () => {
             />
           </div>
           <div className="sm:col-span-2">
+            <ImageUpload images={images} onChange={setImages} />
+          </div>
+          <div className="sm:col-span-2">
             <button type="submit" disabled={saving} className="px-8 py-3 bg-accent text-accent-foreground font-ui text-sm tracking-[0.2em] uppercase hover:bg-gold-dark transition-colors disabled:opacity-50">
-              {saving ? "Saving..." : "Add Product"}
+              {saving ? "Saving..." : editingProduct ? "Update Product" : "Add Product"}
             </button>
           </div>
         </form>
@@ -159,17 +162,22 @@ const AdminProducts = () => {
         <table className="w-full">
           <thead>
             <tr className="border-b border-border">
-              {["Product", "Category", "Price", "Stock", "Status"].map((h) => (
-                <th key={h} className="text-left p-4 font-ui text-xs tracking-wider uppercase text-muted-foreground">{h}</th>
+              {["", "Product", "Category", "Price", "Stock", "Status", ""].map((h, i) => (
+                <th key={i} className="text-left p-4 font-ui text-xs tracking-wider uppercase text-muted-foreground">{h}</th>
               ))}
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
             {products.map((p) => (
               <tr key={p.id} className="hover:bg-muted/50 transition-colors">
+                <td className="p-4 w-16">
+                  {p.images?.[0] ? (
+                    <img src={p.images[0]} alt={p.name} className="w-12 h-12 object-cover" />
+                  ) : (
+                    <div className="w-12 h-12 bg-muted flex items-center justify-center text-muted-foreground text-xs">No img</div>
+                  )}
+                </td>
                 <td className="p-4">
-                  <p className="font-display text-sm text-foreground">{p.name}</p>
-                  <p className="font-body text-xs text-muted-foreground">{p.fabric}</p>
                 </td>
                 <td className="p-4 font-body text-sm text-muted-foreground">{p.category?.name || "—"}</td>
                 <td className="p-4">
