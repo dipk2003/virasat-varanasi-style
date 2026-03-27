@@ -8,20 +8,26 @@ import { useToast } from "@/hooks/use-toast";
 import { ShoppingBag, Tag, Truck, ChevronLeft, CheckCircle } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
+import { CustomerAddress, formatAddressLines, isMissingRelationError, untypedDb } from "@/lib/commerce";
 
 const FREE_SHIPPING_THRESHOLD = 2999;
 const SHIPPING_COST = 199;
 
 const Checkout = () => {
+  const db = untypedDb;
   const navigate = useNavigate();
   const { items, cartTotal, clearCart } = useCart();
   const { user } = useAuth();
   const { toast } = useToast();
 
-  const [profile, setProfile] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [orderPlaced, setOrderPlaced] = useState(false);
   const [orderNumber, setOrderNumber] = useState("");
+  const [savedAddresses, setSavedAddresses] = useState<CustomerAddress[]>([]);
+  const [selectedAddressId, setSelectedAddressId] = useState("");
+  const [addressBookReady, setAddressBookReady] = useState(true);
+  const [addressesLoading, setAddressesLoading] = useState(false);
+  const [saveAddressToBook, setSaveAddressToBook] = useState(false);
 
   const [address, setAddress] = useState({
     full_name: "",
@@ -38,27 +44,62 @@ const Checkout = () => {
   const [couponApplied, setCouponApplied] = useState(false);
   const [couponLoading, setCouponLoading] = useState(false);
 
+  const applyAddress = (nextAddress: Partial<CustomerAddress>) => {
+    setAddress({
+      full_name: nextAddress.full_name || "",
+      phone: nextAddress.phone || "",
+      address_line1: nextAddress.address_line1 || "",
+      address_line2: nextAddress.address_line2 || "",
+      city: nextAddress.city || "",
+      state: nextAddress.state || "",
+      pincode: nextAddress.pincode || "",
+    });
+  };
+
   useEffect(() => {
     if (!user) { navigate("/auth"); return; }
     if (items.length === 0 && !orderPlaced) { navigate("/shop"); return; }
 
     const fetchProfile = async () => {
-      const { data } = await supabase.from("profiles").select("*").eq("user_id", user.id).maybeSingle();
-      if (data) {
-        setProfile(data);
-        setAddress({
-          full_name: data.full_name || "",
-          phone: data.phone || "",
-          address_line1: data.address_line1 || "",
-          address_line2: data.address_line2 || "",
-          city: data.city || "",
-          state: data.state || "",
-          pincode: data.pincode || "",
-        });
+      setAddressesLoading(true);
+      const [profileRes, addressesRes] = await Promise.all([
+        supabase.from("profiles").select("*").eq("user_id", user.id).maybeSingle(),
+        db
+          .from("customer_addresses")
+          .select("*")
+          .eq("user_id", user.id)
+          .order("is_default_shipping", { ascending: false })
+          .order("created_at", { ascending: false }),
+      ]);
+
+      if (profileRes.data) {
+        applyAddress(profileRes.data);
       }
+
+      if (addressesRes.error) {
+        if (isMissingRelationError(addressesRes.error)) {
+          setAddressBookReady(false);
+        } else {
+          toast({ title: "Address book unavailable", description: addressesRes.error.message, variant: "destructive" });
+        }
+      } else {
+        const availableAddresses = (addressesRes.data || []) as CustomerAddress[];
+        setAddressBookReady(true);
+        setSavedAddresses(availableAddresses);
+
+        const preferredAddress = availableAddresses.find((item) => item.is_default_shipping) || availableAddresses[0];
+        if (preferredAddress) {
+          setSelectedAddressId(preferredAddress.id);
+          applyAddress(preferredAddress);
+        } else {
+          setSaveAddressToBook(true);
+        }
+      }
+
+      setAddressesLoading(false);
     };
     fetchProfile();
-  }, [user, items.length]);
+  }, [db, user, items.length, navigate, orderPlaced, toast]);
 
   const shipping = cartTotal >= FREE_SHIPPING_THRESHOLD ? 0 : SHIPPING_COST;
   const total = cartTotal - couponDiscount + shipping;
@@ -113,6 +154,38 @@ const Checkout = () => {
     setCouponApplied(false);
   };
 
+  const persistAddressToBook = async () => {
+    if (!user || !addressBookReady || !saveAddressToBook || selectedAddressId) return;
+
+    const payload = {
+      user_id: user.id,
+      label: savedAddresses.length === 0 ? "Primary Address" : "Checkout Address",
+      full_name: address.full_name,
+      phone: address.phone,
+      address_line1: address.address_line1,
+      address_line2: address.address_line2 || null,
+      city: address.city,
+      state: address.state,
+      pincode: address.pincode,
+      country: "India",
+      is_default_shipping: savedAddresses.length === 0,
+      is_default_billing: savedAddresses.length === 0,
+    };
+
+    const { data, error } = await db.from("customer_addresses").insert(payload).select("*").single();
+
+    if (error) {
+      toast({ title: "Address not saved", description: error.message, variant: "destructive" });
+      return;
+    }
+
+    if (data) {
+      setSavedAddresses((current) => [data as CustomerAddress, ...current]);
+      setSelectedAddressId(data.id);
+      setSaveAddressToBook(false);
+    }
+  };
+
   const placeOrder = async () => {
     if (!address.full_name || !address.phone || !address.address_line1 || !address.city || !address.state || !address.pincode) {
       toast({ title: "Incomplete address", description: "Please fill in all required address fields.", variant: "destructive" });
@@ -132,7 +205,7 @@ const Checkout = () => {
           shipping_cost: shipping,
           total,
           coupon_code: couponApplied ? couponCode.toUpperCase() : null,
-          shipping_address: address as any,
+          shipping_address: address as Record<string, string>,
         })
         .select()
         .single();
@@ -154,7 +227,7 @@ const Checkout = () => {
 
       // Decrement stock via security definer function
       for (const item of items) {
-        await supabase.rpc("decrement_stock" as any, { p_product_id: item.product_id, p_quantity: item.quantity });
+        await supabase.rpc("decrement_stock", { p_product_id: item.product_id, p_quantity: item.quantity });
       }
 
       // Send order confirmation notification
@@ -162,11 +235,13 @@ const Checkout = () => {
         body: { order_id: order.id, type: "order_confirmed" },
       });
 
+      await persistAddressToBook();
       await clearCart();
       setOrderNumber(order.order_number);
       setOrderPlaced(true);
-    } catch (err: any) {
-      toast({ title: "Error", description: err.message || "Failed to place order.", variant: "destructive" });
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Failed to place order.";
+      toast({ title: "Error", description: message, variant: "destructive" });
     }
     setLoading(false);
   };
@@ -222,8 +297,63 @@ const Checkout = () => {
               <h2 className="font-display text-xl text-foreground mb-6 flex items-center gap-2">
                 <Truck size={20} className="text-accent" /> Shipping Address
               </h2>
+
+              {addressBookReady && (
+                <div className="mb-6 space-y-3">
+                  <div className="flex items-center justify-between gap-4">
+                    <p className="font-ui text-xs tracking-[0.2em] uppercase text-muted-foreground">Saved Addresses</p>
+                    {savedAddresses.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSelectedAddressId("");
+                          setSaveAddressToBook(true);
+                        }}
+                        className="font-ui text-xs tracking-wider text-accent hover:underline"
+                      >
+                        Use a new address
+                      </button>
+                    )}
+                  </div>
+
+                  {addressesLoading ? (
+                    <p className="font-body text-sm text-muted-foreground">Loading saved addresses...</p>
+                  ) : savedAddresses.length > 0 ? (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {savedAddresses.map((savedAddress) => (
+                        <button
+                          key={savedAddress.id}
+                          type="button"
+                          onClick={() => {
+                            setSelectedAddressId(savedAddress.id);
+                            setSaveAddressToBook(false);
+                            applyAddress(savedAddress);
+                          }}
+                          className={`text-left border p-4 transition-colors ${
+                            selectedAddressId === savedAddress.id
+                              ? "border-accent bg-accent/5"
+                              : "border-border hover:border-accent/40"
+                          }`}
+                        >
+                          <p className="font-display text-base text-foreground mb-2">{savedAddress.label}</p>
+                          {formatAddressLines(savedAddress).map((line) => (
+                            <p key={line} className="font-body text-xs text-muted-foreground">
+                              {line}
+                            </p>
+                          ))}
+                        </button>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="font-body text-sm text-muted-foreground">
+                      No saved addresses yet. Current checkout address ko address book me save kar sakte ho.
+                    </p>
+                  )}
+                </div>
+              )}
+
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {[
+                {([
                   { key: "full_name", label: "Full Name *", span: 1 },
                   { key: "phone", label: "Phone Number *", span: 1 },
                   { key: "address_line1", label: "Address Line 1 *", span: 2 },
@@ -231,18 +361,33 @@ const Checkout = () => {
                   { key: "city", label: "City *", span: 1 },
                   { key: "state", label: "State *", span: 1 },
                   { key: "pincode", label: "Pincode *", span: 1 },
-                ].map(({ key, label, span }) => (
+                ] as const).map(({ key, label, span }) => (
                   <div key={key} className={span === 2 ? "sm:col-span-2" : ""}>
                     <label className="font-ui text-xs tracking-wider text-muted-foreground mb-1 block">{label}</label>
                     <input
                       type="text"
-                      value={(address as any)[key]}
-                      onChange={(e) => setAddress({ ...address, [key]: e.target.value })}
+                      value={address[key]}
+                      onChange={(e) => {
+                        setSelectedAddressId("");
+                        setAddress({ ...address, [key]: e.target.value });
+                      }}
                       className="w-full px-4 py-3 border border-border bg-background font-body text-sm focus:outline-none focus:border-accent transition-colors"
                     />
                   </div>
                 ))}
               </div>
+
+              {addressBookReady && (
+                <label className="mt-4 flex items-center gap-3 px-4 py-3 border border-border bg-background font-body text-sm text-foreground">
+                  <input
+                    type="checkbox"
+                    checked={saveAddressToBook}
+                    onChange={(event) => setSaveAddressToBook(event.target.checked)}
+                    disabled={!!selectedAddressId}
+                  />
+                  Save this address to my address book
+                </label>
+              )}
             </motion.div>
 
             {/* Coupon */}

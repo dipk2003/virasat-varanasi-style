@@ -25,23 +25,29 @@ const UserNotifications = () => {
 
   if (notifications.length === 0) {
     return (
-      <div className="text-center py-16">
-        <Bell size={48} className="mx-auto text-muted-foreground/30 mb-4" />
-        <h3 className="font-display text-xl text-foreground mb-2">No notifications</h3>
+      <div className="rounded-[28px] border border-dashed border-border bg-card/95 py-16 text-center">
+        <Bell size={48} className="mx-auto mb-4 text-muted-foreground/30" />
+        <h3 className="mb-2 font-display text-2xl text-foreground">No notifications</h3>
         <p className="font-body text-muted-foreground">You're all caught up!</p>
       </div>
     );
   }
 
   return (
-    <div>
-      <h2 className="font-display text-2xl font-light text-foreground mb-6">Notifications</h2>
+    <div className="space-y-6">
+      <section className="rounded-[30px] border border-border/80 bg-[linear-gradient(160deg,hsl(var(--accent)/0.08),transparent_36%),linear-gradient(180deg,hsl(var(--card)),hsl(var(--card)))] p-6 sm:p-7">
+        <p className="font-ui text-[10px] tracking-[0.26em] uppercase text-accent">Updates</p>
+        <h2 className="mt-3 font-display text-3xl text-foreground">Notifications</h2>
+        <p className="mt-3 max-w-2xl font-body text-sm leading-7 text-muted-foreground">
+          Order updates, account alerts, aur important store messages yahan readable timeline me rahenge.
+        </p>
+      </section>
       <div className="space-y-2">
         {notifications.map((n) => (
           <div
             key={n.id}
             onClick={() => !n.is_read && markRead(n.id)}
-            className={`border border-border p-4 cursor-pointer transition-colors ${n.is_read ? "bg-card" : "bg-accent/5 border-accent/20"}`}
+            className={`cursor-pointer rounded-[22px] border p-4 transition-colors ${n.is_read ? "border-border bg-card/95" : "border-accent/20 bg-accent/5"}`}
           >
             <div className="flex items-center justify-between">
               <h4 className="font-display text-base text-foreground">{n.title}</h4>

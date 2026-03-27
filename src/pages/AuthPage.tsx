@@ -1,18 +1,94 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { useNavigate, Link } from "react-router-dom";
+import { useNavigate, Link, useLocation } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { AppRole } from "@/lib/commerce";
 import logo from "@/assets/logo.png";
 
-const AuthPage = () => {
+type AuthLocationState = {
+  redirectTo?: string;
+  requiresAdmin?: boolean;
+};
+
+type PortalMode = "customer" | "admin" | "super-admin";
+
+const portalLinks: Array<{ mode: PortalMode; label: string; path: string }> = [
+  { mode: "customer", label: "Customer", path: "/auth" },
+  { mode: "admin", label: "Admin", path: "/admin/login" },
+  { mode: "super-admin", label: "Super Admin", path: "/superadmin" },
+];
+
+const AuthPage = ({ portal = "customer" }: { portal?: PortalMode }) => {
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+  const location = useLocation();
   const { toast } = useToast();
+  const redirectTo = (location.state as AuthLocationState | null)?.redirectTo;
+  const requiresAdmin = (location.state as AuthLocationState | null)?.requiresAdmin;
+  const isAdminPortal = portal === "admin";
+  const isSuperAdminPortal = portal === "super-admin";
+  const isBusinessPortal = isAdminPortal || isSuperAdminPortal;
+
+  const resolveRoles = async (userId: string) => {
+    const { data } = await supabase
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", userId);
+
+    return ((data || []) as Array<{ role: AppRole | null }>)
+      .map((entry) => entry.role)
+      .filter((role): role is AppRole => role === "user" || role === "admin" || role === "super_admin");
+  };
+
+  const buildNextRoute = (roles: AppRole[]) => {
+    const hasAdminAccess = roles.includes("admin") || roles.includes("super_admin");
+
+    if (redirectTo) {
+      if (redirectTo.startsWith("/admin") && !hasAdminAccess) {
+        return "/shop";
+      }
+
+      if ((redirectTo.startsWith("/super-admin") || redirectTo.startsWith("/superadmin")) && !roles.includes("super_admin")) {
+        return hasAdminAccess ? "/admin" : "/shop";
+      }
+
+      return redirectTo;
+    }
+
+    if (isSuperAdminPortal) {
+      return roles.includes("super_admin") ? "/super-admin" : hasAdminAccess ? "/admin" : "/shop";
+    }
+
+    if (isAdminPortal) {
+      return hasAdminAccess ? "/admin" : "/shop";
+    }
+
+    return hasAdminAccess ? "/admin" : "/shop";
+  };
+
+  const handleGoogleAuth = async () => {
+    setLoading(true);
+
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: {
+        redirectTo: `${window.location.origin}${redirectTo || (isSuperAdminPortal ? "/super-admin" : isAdminPortal ? "/admin" : "/shop")}`,
+        queryParams: {
+          prompt: "select_account",
+        },
+      },
+    });
+
+    if (error) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+      setLoading(false);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -20,10 +96,15 @@ const AuthPage = () => {
 
     try {
       if (isLogin) {
-        const { error } = await supabase.auth.signInWithPassword({ email, password });
+        const { data, error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
+
+        const signedInUser = data.user ?? data.session?.user;
+        const roles = signedInUser ? await resolveRoles(signedInUser.id) : [];
+        const nextRoute = buildNextRoute(roles);
+
         toast({ title: "Welcome back!", description: "Successfully logged in." });
-        navigate("/");
+        navigate(nextRoute, { replace: true });
       } else {
         const { error } = await supabase.auth.signUp({
           email,
@@ -34,7 +115,13 @@ const AuthPage = () => {
           },
         });
         if (error) throw error;
-        toast({ title: "Account created!", description: "Please check your email to verify your account." });
+        toast({
+          title: "Account created!",
+          description: requiresAdmin
+            ? "Admin or super-admin signup submitted. Verify the email, then sign in to continue."
+            : "Please check your email to verify your account, then continue shopping.",
+        });
+        setIsLogin(true);
       }
     } catch (error: any) {
       toast({ title: "Error", description: error.message, variant: "destructive" });
@@ -56,12 +143,66 @@ const AuthPage = () => {
             <img src={logo} alt="Virasat" className="h-20 w-auto mx-auto mb-4" />
           </Link>
           <h1 className="font-display text-3xl font-light text-foreground">
-            {isLogin ? "Welcome Back" : "Join Virasat"}
+            {isSuperAdminPortal ? (isLogin ? "Super Admin Access" : "Create Super Admin Access") : isAdminPortal ? (isLogin ? "Admin Access" : "Create Admin Access") : isLogin ? "Welcome Back" : "Join Virasat"}
           </h1>
           <p className="font-body text-muted-foreground mt-2">
-            {isLogin ? "Sign in to your account" : "Create your account"}
+            {isSuperAdminPortal
+              ? "Sign in to the platform owner console"
+              : isAdminPortal
+                ? "Sign in to the operations console"
+                : isLogin
+                  ? "Sign in to your account"
+                  : "Create your account"}
           </p>
+          {requiresAdmin && (
+            <p className="mt-4 border border-accent/30 bg-accent/10 px-4 py-3 text-sm font-body text-foreground">
+              {isSuperAdminPortal
+                ? "Super admin console protected hai. Pehle super admin account se sign in karo, ya bootstrap super admin email se sign up karke verify karo."
+                : "Admin panel protected hai. Pehle admin account se sign in karo. Agar pehli baar setup kar rahe ho, bootstrap admin ya super-admin email se sign up karke verify karo, phir wapas yahin sign in karo."}
+            </p>
+          )}
         </div>
+
+        {!isBusinessPortal && (
+          <>
+            <div className="mb-6 grid gap-2 grid-cols-1">
+              {portalLinks
+                .filter((portalLink) => portalLink.mode === "customer")
+                .map((portalLink) => (
+                  <Link
+                    key={portalLink.mode}
+                    to={portalLink.path}
+                    state={location.state}
+                    className="border border-accent bg-accent/10 px-3 py-2 text-center font-ui text-[10px] tracking-[0.18em] uppercase text-accent transition-colors"
+                  >
+                    {portalLink.label}
+                  </Link>
+                ))}
+            </div>
+
+            <div className="space-y-3 mb-4">
+              <button
+                type="button"
+                onClick={handleGoogleAuth}
+                disabled={loading}
+                className="w-full py-3 border border-border bg-card text-foreground font-ui text-sm tracking-[0.12em] uppercase hover:border-accent transition-colors disabled:opacity-50"
+              >
+                Continue With Google
+              </button>
+              <p className="text-center font-ui text-[10px] tracking-[0.2em] uppercase text-muted-foreground">
+                Or continue with email
+              </p>
+            </div>
+          </>
+        )}
+
+        {isBusinessPortal && (
+          <div className="mb-4 border border-border bg-card px-4 py-3 text-center">
+            <p className="font-ui text-[10px] tracking-[0.18em] uppercase text-muted-foreground">
+              Business portal access via email and password only
+            </p>
+          </div>
+        )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
           {!isLogin && (
@@ -126,9 +267,38 @@ const AuthPage = () => {
         </p>
 
         <div className="text-center mt-4">
-          <Link to="/" className="font-ui text-xs tracking-wider uppercase text-muted-foreground hover:text-accent transition-colors">
-            ← Back to Store
-          </Link>
+          <div className="space-y-2">
+            {(isAdminPortal || isSuperAdminPortal) && (
+              <Link
+                to="/auth"
+                state={{ redirectTo: redirectTo || "/shop" }}
+                className="block font-ui text-xs tracking-wider uppercase text-muted-foreground hover:text-accent transition-colors"
+              >
+                Customer Login
+              </Link>
+            )}
+            {isSuperAdminPortal && (
+              <Link
+                to="/admin/login"
+                state={{ redirectTo: redirectTo || "/admin", requiresAdmin: true }}
+                className="block font-ui text-xs tracking-wider uppercase text-muted-foreground hover:text-accent transition-colors"
+              >
+                Admin Login
+              </Link>
+            )}
+            {isAdminPortal && (
+              <Link
+                to="/superadmin"
+                state={{ redirectTo: redirectTo || "/super-admin", requiresAdmin: true }}
+                className="block font-ui text-xs tracking-wider uppercase text-muted-foreground hover:text-accent transition-colors"
+              >
+                Super Admin Login
+              </Link>
+            )}
+            <Link to="/" className="block font-ui text-xs tracking-wider uppercase text-muted-foreground hover:text-accent transition-colors">
+              ← Back to Store
+            </Link>
+          </div>
         </div>
       </motion.div>
     </div>

@@ -3,7 +3,6 @@ import { motion, useInView, AnimatePresence, useScroll, useTransform } from "fra
 import { useSearchParams, Link, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useCart } from "@/contexts/CartContext";
-import { useAuth } from "@/contexts/AuthContext";
 import { Heart, ShoppingBag, Eye, SlidersHorizontal, X, ChevronDown } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import CartDrawer from "@/components/CartDrawer";
@@ -23,10 +22,10 @@ const ProductListing = () => {
   const [products, setProducts] = useState<any[]>([]);
   const [categories, setCategories] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [hoveredProduct, setHoveredProduct] = useState<string | null>(null);
   const { addToCart } = useCart();
-  const { user } = useAuth();
   const navigate = useNavigate();
 
   const selectedCategory = searchParams.get("category") || "";
@@ -43,10 +42,20 @@ const ProductListing = () => {
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
+      setLoadError(null);
       const [catRes, prodRes] = await Promise.all([
         supabase.from("categories").select("*").eq("is_active", true).order("sort_order"),
         supabase.from("products").select("*, category:categories(name, slug)").eq("is_active", true),
       ]);
+
+      if (catRes.error || prodRes.error) {
+        setCategories([]);
+        setProducts([]);
+        setLoadError(prodRes.error?.message || catRes.error?.message || "Unable to load products right now.");
+        setLoading(false);
+        return;
+      }
+
       setCategories(catRes.data || []);
 
       let filtered = prodRes.data || [];
@@ -143,11 +152,14 @@ const ProductListing = () => {
           </div>
 
           <div className="flex items-center gap-3">
-            <span className="font-body text-sm text-muted-foreground">{products.length} products</span>
+            <span className="font-body text-sm text-muted-foreground">
+              {loading ? "Loading products..." : `${products.length} products`}
+            </span>
             <div className="relative">
               <select
                 value={sortBy}
                 onChange={(e) => setFilter("sort", e.target.value)}
+                disabled={loading}
                 className="appearance-none pl-4 pr-8 py-2.5 border border-border bg-background font-ui text-xs tracking-wider focus:outline-none focus:border-accent cursor-pointer"
               >
                 <option value="newest">Newest First</option>
@@ -289,6 +301,19 @@ const ProductListing = () => {
                 </div>
               ))}
             </div>
+          ) : loadError ? (
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-center py-24">
+              <ShoppingBag size={56} className="mx-auto text-destructive/30 mb-4" />
+              <h3 className="font-display text-2xl text-foreground mb-2">Products failed to load</h3>
+              <p className="font-body text-muted-foreground mb-2">{loadError}</p>
+              <p className="font-body text-sm text-muted-foreground mb-6">Refresh the page or verify that your Supabase project is reachable.</p>
+              <button
+                onClick={() => window.location.reload()}
+                className="px-8 py-3 bg-accent text-accent-foreground font-ui text-sm tracking-[0.2em] uppercase hover:bg-gold-dark transition-colors"
+              >
+                Retry
+              </button>
+            </motion.div>
           ) : products.length === 0 ? (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-center py-24">
               <ShoppingBag size={56} className="mx-auto text-muted-foreground/20 mb-4" />

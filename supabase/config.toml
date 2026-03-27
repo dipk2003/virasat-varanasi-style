@@ -1,4 +1,4 @@
-project_id = "hlxxxtgmluvgtvhljtuh"
+project_id = "cjqmkfwwgkiowqyqusyr"
 
 [functions.check-low-stock]
 verify_jwt = false

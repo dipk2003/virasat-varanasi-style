@@ -7,9 +7,19 @@ interface ImageUploadProps {
   images: string[];
   onChange: (images: string[]) => void;
   maxImages?: number;
+  bucket?: string;
+  label?: string;
+  helperText?: string;
 }
 
-const ImageUpload = ({ images, onChange, maxImages = 6 }: ImageUploadProps) => {
+const ImageUpload = ({
+  images,
+  onChange,
+  maxImages = 6,
+  bucket = "product-images",
+  label = "Images",
+  helperText = "or click to browse • JPG, PNG, WebP",
+}: ImageUploadProps) => {
   const { toast } = useToast();
   const [uploading, setUploading] = useState(false);
   const [dragOver, setDragOver] = useState(false);
@@ -20,7 +30,7 @@ const ImageUpload = ({ images, onChange, maxImages = 6 }: ImageUploadProps) => {
     const ext = file.name.split(".").pop();
     const path = `${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
 
-    const { error } = await supabase.storage.from("product-images").upload(path, file, {
+    const { error } = await supabase.storage.from(bucket).upload(path, file, {
       cacheControl: "3600",
       upsert: false,
     });
@@ -30,7 +40,7 @@ const ImageUpload = ({ images, onChange, maxImages = 6 }: ImageUploadProps) => {
       return null;
     }
 
-    const { data } = supabase.storage.from("product-images").getPublicUrl(path);
+    const { data } = supabase.storage.from(bucket).getPublicUrl(path);
     return data.publicUrl;
   };
 
@@ -58,7 +68,7 @@ const ImageUpload = ({ images, onChange, maxImages = 6 }: ImageUploadProps) => {
       toast({ title: `${urls.length} image(s) uploaded` });
     }
     setUploading(false);
-  }, [images, maxImages, onChange]);
+  }, [bucket, images, maxImages, onChange]);
 
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -82,7 +92,7 @@ const ImageUpload = ({ images, onChange, maxImages = 6 }: ImageUploadProps) => {
   return (
     <div className="space-y-3">
       <label className="font-ui text-xs tracking-wider uppercase text-muted-foreground block">
-        Product Images ({images.length}/{maxImages})
+        {label} ({images.length}/{maxImages})
       </label>
 
       {/* Drop Zone */}
@@ -108,7 +118,7 @@ const ImageUpload = ({ images, onChange, maxImages = 6 }: ImageUploadProps) => {
           {uploading ? "Uploading..." : "Drag & drop images here"}
         </p>
         <p className="font-body text-xs text-muted-foreground mt-1">
-          or click to browse • JPG, PNG, WebP
+          {helperText}
         </p>
       </div>
 

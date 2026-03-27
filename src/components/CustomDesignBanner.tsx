@@ -1,16 +1,29 @@
 import { motion, useInView } from "framer-motion";
 import { useRef } from "react";
 import { Palette, Scissors, MessageCircle } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "@/contexts/AuthContext";
 
 const features = [
-  { icon: Palette, title: "Choose Fabric & Color", desc: "Select from our premium Banarasi fabrics" },
-  { icon: Scissors, title: "Custom Tailoring", desc: "Perfect fit with your measurements" },
-  { icon: MessageCircle, title: "Artisan Consultation", desc: "Direct chat with master weavers" },
+  { icon: Palette, title: "Choose Product & Fabric", desc: "Saree, kurti, lehenga, dupatta and premium Banarasi material options" },
+  { icon: Scissors, title: "Custom Tailoring Brief", desc: "Measurements, blouse, sleeve, fall, pico, and fit details in one place" },
+  { icon: MessageCircle, title: "Occasion to Delivery", desc: "Share deadline, budget, quantity, and styling notes with the team" },
 ];
 
 const CustomDesignBanner = () => {
   const ref = useRef(null);
   const isInView = useInView(ref, { once: true, margin: "-100px" });
+  const navigate = useNavigate();
+  const { user } = useAuth();
+
+  const handleStartDesign = () => {
+    if (user) {
+      navigate("/dashboard?tab=custom");
+      return;
+    }
+
+    navigate("/auth", { state: { redirectTo: "/dashboard?tab=custom" } });
+  };
 
   return (
     <section id="custom" className="py-24 bg-background" ref={ref}>
@@ -29,8 +42,8 @@ const CustomDesignBanner = () => {
           </h2>
           <div className="gold-divider w-24 mx-auto mb-6" />
           <p className="font-body text-lg text-muted-foreground max-w-2xl mx-auto">
-            Design your dream kurti with our master artisans. Choose your fabric, pattern, and style — 
-            we'll bring your vision to life with authentic Banarasi craftsmanship.
+            Design your dream saree, kurti, lehenga, blouse, or festive set with a full production brief.
+            Fabric, weave, fit, budget, deadline, and delivery notes ek hi request me share karo.
           </p>
         </motion.div>
 
@@ -62,12 +75,13 @@ const CustomDesignBanner = () => {
           transition={{ delay: 0.9, duration: 0.6 }}
           className="text-center"
         >
-          <a
-            href="#"
+          <button
+            type="button"
+            onClick={handleStartDesign}
             className="inline-block px-10 py-4 bg-accent text-accent-foreground font-ui text-sm tracking-[0.2em] uppercase hover:bg-gold-dark transition-colors duration-300"
           >
-            Start Designing
-          </a>
+            Start Custom Inquiry
+          </button>
         </motion.div>
       </div>
     </section>

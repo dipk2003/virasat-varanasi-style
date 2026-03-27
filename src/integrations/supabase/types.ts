@@ -181,6 +181,45 @@ export type Database = {
         }
         Relationships: []
       }
+      lead_requests: {
+        Row: {
+          company_name: string | null
+          created_at: string
+          email: string | null
+          full_name: string
+          id: string
+          machine_interest: string | null
+          message: string | null
+          phone: string
+          quantity: string | null
+          source: string
+        }
+        Insert: {
+          company_name?: string | null
+          created_at?: string
+          email?: string | null
+          full_name: string
+          id?: string
+          machine_interest?: string | null
+          message?: string | null
+          phone: string
+          quantity?: string | null
+          source?: string
+        }
+        Update: {
+          company_name?: string | null
+          created_at?: string
+          email?: string | null
+          full_name?: string
+          id?: string
+          machine_interest?: string | null
+          message?: string | null
+          phone?: string
+          quantity?: string | null
+          source?: string
+        }
+        Relationships: []
+      }
       notifications: {
         Row: {
           created_at: string
@@ -605,7 +644,7 @@ export type Database = {
       }
     }
     Enums: {
-      app_role: "admin" | "user"
+      app_role: "admin" | "super_admin" | "user"
       custom_design_status:
         | "submitted"
         | "under_review"
@@ -749,7 +788,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      app_role: ["admin", "user"],
+      app_role: ["admin", "super_admin", "user"],
       custom_design_status: [
         "submitted",
         "under_review",
