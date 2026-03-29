@@ -15,6 +15,7 @@ import ProductEditorPage from "./pages/ProductEditorPage";
 import ProductListing from "./pages/ProductListing";
 import ProductDetail from "./pages/ProductDetail";
 import Checkout from "./pages/Checkout";
+import StorefrontInfoPage from "./pages/StorefrontInfoPage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -73,6 +74,15 @@ const App = () => (
                 <Route path="/super-admin/login" element={<Navigate to="/superadmin" replace />} />
                 <Route path="/shop" element={<ProductListing />} />
                 <Route path="/product/:slug" element={<ProductDetail />} />
+                <Route path="/360-view-styles" element={<StorefrontInfoPage pageKey="view-360-styles" />} />
+                <Route path="/custom-design" element={<StorefrontInfoPage pageKey="custom-design" />} />
+                <Route path="/track-order" element={<StorefrontInfoPage pageKey="track-order" />} />
+                <Route path="/returns-and-refunds" element={<StorefrontInfoPage pageKey="returns-and-refunds" />} />
+                <Route path="/size-guide" element={<StorefrontInfoPage pageKey="size-guide" />} />
+                <Route path="/contact-us" element={<StorefrontInfoPage pageKey="contact-us" />} />
+                <Route path="/privacy-policy" element={<StorefrontInfoPage pageKey="privacy-policy" />} />
+                <Route path="/terms-of-service" element={<StorefrontInfoPage pageKey="terms-of-service" />} />
+                <Route path="/shipping-info" element={<StorefrontInfoPage pageKey="shipping-info" />} />
                 <Route path="/checkout" element={<CustomerRoute><Checkout /></CustomerRoute>} />
                 <Route path="/dashboard" element={<CustomerRoute><UserDashboard /></CustomerRoute>} />
                 <Route path="/admin" element={<AdminRoute><AdminDashboard /></AdminRoute>} />
