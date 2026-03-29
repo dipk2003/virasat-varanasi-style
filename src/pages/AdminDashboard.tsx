@@ -1,9 +1,6 @@
 import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
-import { useNavigate } from "react-router-dom";
-import {
-  LayoutDashboard, Package, ShoppingCart, Tag, Palette, Star, Users, BarChart3, Headset,
-} from "lucide-react";
+import { useLocation, useNavigate } from "react-router-dom";
 import AdminOverview from "@/components/admin/AdminOverview";
 import AdminProducts from "@/components/admin/AdminProducts";
 import AdminOrders from "@/components/admin/AdminOrders";
@@ -13,22 +10,20 @@ import AdminReviews from "@/components/admin/AdminReviews";
 import AdminCustomers from "@/components/admin/AdminCustomers";
 import AdminInventory from "@/components/admin/AdminInventory";
 import AdminSupportInbox from "@/components/admin/AdminSupportInbox";
-import BusinessConsoleLayout, { BusinessConsoleTab } from "@/components/admin/BusinessConsoleLayout";
+import BusinessConsoleLayout from "@/components/admin/BusinessConsoleLayout";
+import { businessConsoleConfigs } from "@/lib/businessConsole";
 
-const adminTabs: BusinessConsoleTab[] = [
-  { id: "overview", label: "Overview", icon: LayoutDashboard },
-  { id: "products", label: "Products", icon: Package },
-  { id: "inventory", label: "Inventory", icon: BarChart3 },
-  { id: "orders", label: "Orders", icon: ShoppingCart },
-  { id: "coupons", label: "Coupons", icon: Tag },
-  { id: "custom-designs", label: "Custom Designs", icon: Palette },
-  { id: "support", label: "Support", icon: Headset },
-  { id: "reviews", label: "Reviews", icon: Star },
-  { id: "customers", label: "Customers", icon: Users },
-];
+type DashboardLocationState = {
+  initialTab?: string;
+};
 
 const AdminDashboard = () => {
-  const [activeTab, setActiveTab] = useState("overview");
+  const config = businessConsoleConfigs.admin;
+  const location = useLocation();
+  const requestedTab = (location.state as DashboardLocationState | null)?.initialTab;
+  const [activeTab, setActiveTab] = useState(
+    requestedTab && config.tabs.some((tab) => tab.id === requestedTab) ? requestedTab : "overview"
+  );
   const { signOut } = useAuth();
   const navigate = useNavigate();
 
@@ -39,16 +34,16 @@ const AdminDashboard = () => {
 
   return (
     <BusinessConsoleLayout
-      badge="Admin Operations Console"
-      title="Operations Dashboard"
-      subtitle="Daily catalog, order, customer, and review management yahan se handle hoga."
-      tabs={adminTabs}
+      badge={config.badge}
+      title={config.title}
+      subtitle={config.subtitle}
+      tabs={config.tabs}
       activeTab={activeTab}
       onTabChange={setActiveTab}
       onSignOut={handleSignOut}
     >
       {activeTab === "overview" && <AdminOverview />}
-      {activeTab === "products" && <AdminProducts />}
+      {activeTab === "products" && <AdminProducts portal="admin" />}
       {activeTab === "inventory" && <AdminInventory />}
       {activeTab === "orders" && <AdminOrders />}
       {activeTab === "coupons" && <AdminCoupons />}

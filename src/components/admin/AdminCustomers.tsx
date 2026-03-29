@@ -29,7 +29,7 @@ const AdminCustomers = () => {
 
       const roleMap = new Map<string, AppRole[]>();
       ((roles.data || []) as Array<{ user_id: string; role: AppRole }>).forEach((entry) => {
-        roleMap.set(entry.user_id, [...(roleMap.get(entry.user_id) || []), entry.role]);
+        roleMap.set(entry.user_id, Array.from(new Set([...(roleMap.get(entry.user_id) || []), entry.role])));
       });
 
       const orderMap = new Map<string, number>();
@@ -45,7 +45,7 @@ const AdminCustomers = () => {
       setCustomers(
         ((profiles.data || []) as Array<{ id: string; user_id: string; full_name: string | null; phone: string | null; city: string | null; created_at: string }>).map((profile) => ({
           ...profile,
-          roles: roleMap.get(profile.user_id) || ["user"],
+          roles: roleMap.get(profile.user_id) || [],
           orders: orderMap.get(profile.user_id) || 0,
           inquiries: inquiryMap.get(profile.user_id) || 0,
         }))
@@ -81,11 +81,15 @@ const AdminCustomers = () => {
                 <td className="p-4 font-display text-sm text-foreground">{c.full_name || "—"}</td>
                 <td className="p-4">
                   <div className="flex flex-wrap gap-2">
-                    {c.roles.map((role) => (
-                      <span key={role} className="px-2 py-1 bg-accent/10 text-accent font-ui text-[10px] tracking-wider uppercase">
-                        {roleLabels[role]}
-                      </span>
-                    ))}
+                    {c.roles.length > 0 ? (
+                      c.roles.map((role) => (
+                        <span key={role} className="px-2 py-1 bg-accent/10 text-accent font-ui text-[10px] tracking-wider uppercase">
+                          {roleLabels[role]}
+                        </span>
+                      ))
+                    ) : (
+                      <span className="font-body text-xs text-muted-foreground">No role assigned</span>
+                    )}
                   </div>
                 </td>
                 <td className="p-4 font-body text-sm text-muted-foreground">{c.orders}</td>

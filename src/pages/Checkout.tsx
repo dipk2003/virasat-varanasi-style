@@ -16,7 +16,7 @@ const SHIPPING_COST = 199;
 const Checkout = () => {
   const db = untypedDb;
   const navigate = useNavigate();
-  const { items, cartTotal, clearCart } = useCart();
+  const { items, cartTotal, clearCart, loading: cartLoading } = useCart();
   const { user } = useAuth();
   const { toast } = useToast();
 
@@ -57,7 +57,12 @@ const Checkout = () => {
   };
 
   useEffect(() => {
-    if (!user) { navigate("/auth"); return; }
+    if (!user) {
+      navigate("/auth", { replace: true, state: { redirectTo: "/checkout" } });
+      return;
+    }
+
+    if (cartLoading) return;
     if (items.length === 0 && !orderPlaced) { navigate("/shop"); return; }
 
     const fetchProfile = async () => {
@@ -99,7 +104,7 @@ const Checkout = () => {
       setAddressesLoading(false);
     };
     fetchProfile();
-  }, [db, user, items.length, navigate, orderPlaced, toast]);
+  }, [cartLoading, db, user, items.length, navigate, orderPlaced, toast]);
 
   const shipping = cartTotal >= FREE_SHIPPING_THRESHOLD ? 0 : SHIPPING_COST;
   const total = cartTotal - couponDiscount + shipping;
@@ -271,6 +276,18 @@ const Checkout = () => {
               Continue Shopping
             </button>
           </motion.div>
+        </div>
+        <Footer />
+      </div>
+    );
+  }
+
+  if (cartLoading) {
+    return (
+      <div className="min-h-screen bg-background">
+        <Navbar />
+        <div className="pt-32 pb-16 container mx-auto px-4 text-center">
+          <p className="font-ui text-xs tracking-[0.2em] uppercase text-muted-foreground">Preparing your checkout</p>
         </div>
         <Footer />
       </div>

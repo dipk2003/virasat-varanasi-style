@@ -33,6 +33,8 @@ const supabase = createClient(supabaseUrl, serviceRoleKey, {
   },
 });
 
+const allRoles = ["user", "admin", "super_admin"];
+
 const isMissingRelationError = (error) => {
   const message = error?.message || "";
   return (
@@ -142,9 +144,16 @@ const ensureProfile = async (userId, fullName) => {
 };
 
 const ensureRoles = async (userId, intendedRole) => {
-  const elevatedRoles = ["admin", "super_admin"];
-  const allowedRoles = intendedRole === "user" ? ["user"] : intendedRole === "admin" ? ["user", "admin"] : ["user", "super_admin"];
-  const rolesToRemove = elevatedRoles.filter((role) => !allowedRoles.includes(role));
+  const rolesToRemove = allRoles.filter((role) => role !== intendedRole);
+
+  const { error: insertError } = await supabase
+    .from("user_roles")
+    .upsert(
+      [{ user_id: userId, role: intendedRole }],
+      { onConflict: "user_id,role" }
+    );
+
+  if (insertError) throw insertError;
 
   if (rolesToRemove.length > 0) {
     const { error: deleteError } = await supabase
@@ -155,15 +164,6 @@ const ensureRoles = async (userId, intendedRole) => {
 
     if (deleteError) throw deleteError;
   }
-
-  const { error: insertError } = await supabase
-    .from("user_roles")
-    .upsert(
-      allowedRoles.map((role) => ({ user_id: userId, role })),
-      { onConflict: "user_id,role" }
-    );
-
-  if (insertError) throw insertError;
 };
 
 const validateRoleSupport = async (accounts) => {

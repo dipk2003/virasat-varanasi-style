@@ -4,6 +4,7 @@ import { Menu, X, ShoppingBag, Search, User } from "lucide-react";
 import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCart } from "@/contexts/CartContext";
+import { useHomepageContent } from "@/hooks/use-homepage-content";
 import logo from "@/assets/logo.png";
 
 const navLinks = [
@@ -17,9 +18,16 @@ const navLinks = [
 const Navbar = ({ onSearchOpen }: { onSearchOpen?: () => void }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
-  const { user, isAdmin } = useAuth();
+  const { user, isCustomer, isAdmin, isSuperAdmin } = useAuth();
   const { cartCount, setIsCartOpen } = useCart();
+  const homepageContent = useHomepageContent();
   const navigate = useNavigate();
+  const announcementMessages = [
+    homepageContent.announcement_bar.message_primary,
+    homepageContent.announcement_bar.message_secondary,
+    homepageContent.announcement_bar.message_primary,
+    homepageContent.announcement_bar.message_secondary,
+  ].filter((message) => message.trim().length > 0);
 
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 50);
@@ -52,23 +60,17 @@ const Navbar = ({ onSearchOpen }: { onSearchOpen?: () => void }) => {
         scrolled ? "bg-background/95 backdrop-blur-md shadow-luxury" : "bg-transparent"
       }`}
     >
-      {/* Sale banner */}
-      <div className="bg-maroon-gradient overflow-hidden">
-        <div className="animate-marquee whitespace-nowrap py-1.5">
-          <span className="font-ui text-xs tracking-[0.3em] uppercase text-primary-foreground mx-8">
-            ✦ Limited Collection — Flat 30% Off on Banarasi Silk ✦
-          </span>
-          <span className="font-ui text-xs tracking-[0.3em] uppercase text-primary-foreground mx-8">
-            ✦ Free Shipping on Orders Above ₹2,999 ✦
-          </span>
-          <span className="font-ui text-xs tracking-[0.3em] uppercase text-primary-foreground mx-8">
-            ✦ Limited Collection — Flat 30% Off on Banarasi Silk ✦
-          </span>
-          <span className="font-ui text-xs tracking-[0.3em] uppercase text-primary-foreground mx-8">
-            ✦ Free Shipping on Orders Above ₹2,999 ✦
-          </span>
+      {homepageContent.announcement_bar.enabled && announcementMessages.length > 0 && (
+        <div className="bg-maroon-gradient overflow-hidden">
+          <div className="animate-marquee whitespace-nowrap py-1.5">
+            {announcementMessages.map((message, index) => (
+              <span key={`${message}-${index}`} className="font-ui text-xs tracking-[0.3em] uppercase text-primary-foreground mx-8">
+                {message}
+              </span>
+            ))}
+          </div>
         </div>
-      </div>
+      )}
 
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-20">
@@ -110,7 +112,19 @@ const Navbar = ({ onSearchOpen }: { onSearchOpen?: () => void }) => {
               whileHover={{ scale: 1.1 }}
               whileTap={{ scale: 0.95 }}
               className="text-foreground/70 hover:text-accent transition-colors"
-              onClick={() => navigate(user ? (isAdmin ? "/admin" : "/dashboard") : "/auth")}
+              onClick={() =>
+                navigate(
+                  user
+                    ? isSuperAdmin
+                      ? "/super-admin"
+                      : isAdmin
+                        ? "/admin"
+                        : isCustomer
+                          ? "/dashboard"
+                          : "/shop"
+                    : "/auth"
+                )
+              }
             >
               <User size={20} />
             </motion.button>

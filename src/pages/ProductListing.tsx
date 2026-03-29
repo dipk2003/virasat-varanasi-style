@@ -3,6 +3,8 @@ import { motion, useInView, AnimatePresence, useScroll, useTransform } from "fra
 import { useSearchParams, Link, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useCart } from "@/contexts/CartContext";
+import { useAuth } from "@/contexts/AuthContext";
+import { useToast } from "@/hooks/use-toast";
 import { Heart, ShoppingBag, Eye, SlidersHorizontal, X, ChevronDown } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import CartDrawer from "@/components/CartDrawer";
@@ -24,8 +26,10 @@ const ProductListing = () => {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [filtersOpen, setFiltersOpen] = useState(false);
-  const [hoveredProduct, setHoveredProduct] = useState<string | null>(null);
-  const { addToCart } = useCart();
+  const [wishlistedIds, setWishlistedIds] = useState<string[]>([]);
+  const { addToCart, setIsCartOpen } = useCart();
+  const { user } = useAuth();
+  const { toast } = useToast();
   const navigate = useNavigate();
 
   const selectedCategory = searchParams.get("category") || "";
@@ -77,6 +81,51 @@ const ProductListing = () => {
     fetchData();
   }, [selectedCategory, selectedFabric, selectedSize, selectedPriceRange, sortBy]);
 
+  useEffect(() => {
+    let active = true;
+
+    const fetchWishlist = async () => {
+      if (!user?.id || products.length === 0) {
+        if (active) setWishlistedIds([]);
+        return;
+      }
+
+      const productIds = products
+        .map((product) => product.id)
+        .filter((productId): productId is string => typeof productId === "string" && productId.length > 0);
+
+      if (productIds.length === 0) {
+        if (active) setWishlistedIds([]);
+        return;
+      }
+
+      const { data, error } = await supabase
+        .from("wishlist")
+        .select("product_id")
+        .eq("user_id", user.id)
+        .in("product_id", productIds);
+
+      if (!active) return;
+
+      if (error) {
+        setWishlistedIds([]);
+        return;
+      }
+
+      setWishlistedIds(
+        ((data || []) as Array<{ product_id: string | null }>)
+          .map((entry) => entry.product_id)
+          .filter((productId): productId is string => Boolean(productId))
+      );
+    };
+
+    void fetchWishlist();
+
+    return () => {
+      active = false;
+    };
+  }, [products, user?.id]);
+
   const setFilter = (key: string, value: string) => {
     const params = new URLSearchParams(searchParams);
     if (value) params.set(key, value);
@@ -86,6 +135,85 @@ const ProductListing = () => {
 
   const clearFilters = () => setSearchParams({});
   const activeFilterCount = [selectedCategory, selectedFabric, selectedSize, selectedPriceRange].filter(Boolean).length;
+
+  const requestSignIn = (productSlug?: string) => {
+    toast({
+      title: "Sign in required",
+      description: "Please sign in first to save items to your wishlist.",
+    });
+
+    navigate("/auth", {
+      state: {
+        redirectTo: productSlug ? `/product/${productSlug}` : "/shop",
+      },
+    });
+  };
+
+  const handleAddToBag = async (event: React.MouseEvent<HTMLButtonElement>, product: any) => {
+    event.stopPropagation();
+
+    await addToCart(product.id, product.sizes?.[0], product.colors?.[0]);
+    setIsCartOpen(true);
+  };
+
+  const handleWishlistToggle = async (event: React.MouseEvent<HTMLButtonElement>, product: any) => {
+    event.stopPropagation();
+
+    if (!user) {
+      requestSignIn(product.slug);
+      return;
+    }
+
+    const isWishlisted = wishlistedIds.includes(product.id);
+
+    if (isWishlisted) {
+      const { error } = await supabase
+        .from("wishlist")
+        .delete()
+        .eq("user_id", user.id)
+        .eq("product_id", product.id);
+
+      if (error) {
+        toast({
+          title: "Wishlist update failed",
+          description: error.message,
+          variant: "destructive",
+        });
+        return;
+      }
+
+      setWishlistedIds((current) => current.filter((productId) => productId !== product.id));
+      toast({
+        title: "Removed from wishlist",
+        description: `${product.name} has been removed from your wishlist.`,
+      });
+      return;
+    }
+
+    const { error } = await supabase
+      .from("wishlist")
+      .insert({ user_id: user.id, product_id: product.id });
+
+    if (error) {
+      toast({
+        title: "Wishlist update failed",
+        description: error.message,
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setWishlistedIds((current) => [...current, product.id]);
+    toast({
+      title: "Saved to wishlist",
+      description: `${product.name} is now in your wishlist.`,
+    });
+  };
+
+  const handleQuickView = (event: React.MouseEvent<HTMLButtonElement>, productSlug: string) => {
+    event.stopPropagation();
+    navigate(`/product/${productSlug}`);
+  };
 
   const gridRef = useRef(null);
   const gridInView = useInView(gridRef, { once: true, margin: "-50px" });
@@ -336,8 +464,6 @@ const ProductListing = () => {
                     transition={{ duration: 0.5, delay: i * 0.06 }}
                     className="group cursor-pointer"
                     onClick={() => navigate(`/product/${product.slug}`)}
-                    onMouseEnter={() => setHoveredProduct(product.id)}
-                    onMouseLeave={() => setHoveredProduct(null)}
                   >
                     <div className="relative overflow-hidden aspect-[3/4] mb-4">
                       {product.images?.[0] ? (
@@ -377,23 +503,38 @@ const ProductListing = () => {
                       </div>
 
                       {/* Hover actions */}
-                      <motion.div
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={hoveredProduct === product.id ? { opacity: 1, y: 0 } : { opacity: 0, y: 20 }}
-                        transition={{ duration: 0.25 }}
-                        className="absolute bottom-3 left-3 right-3 flex justify-center gap-2"
-                      >
+                      <div className="absolute bottom-3 left-3 right-3 flex items-center justify-center gap-2 opacity-100 transition-all duration-300 sm:translate-y-3 sm:opacity-0 sm:group-hover:translate-y-0 sm:group-hover:opacity-100">
                         <button
-                          onClick={(e) => { e.stopPropagation(); addToCart(product.id, product.sizes?.[0]); }}
+                          onClick={(event) => {
+                            void handleAddToBag(event, product);
+                          }}
                           className="flex-1 py-2.5 bg-background/90 backdrop-blur-sm flex items-center justify-center gap-2 font-ui text-[10px] tracking-wider uppercase hover:bg-accent hover:text-accent-foreground transition-colors"
                           disabled={product.stock_quantity === 0}
+                          aria-label={`Add ${product.name} to bag`}
                         >
                           <ShoppingBag size={14} /> Add to Bag
                         </button>
-                        <button className="w-10 h-10 bg-background/90 backdrop-blur-sm flex items-center justify-center hover:bg-accent hover:text-accent-foreground transition-colors">
-                          <Heart size={16} />
+                        <button
+                          onClick={(event) => {
+                            void handleWishlistToggle(event, product);
+                          }}
+                          className={`w-10 h-10 bg-background/90 backdrop-blur-sm flex items-center justify-center transition-colors ${
+                            wishlistedIds.includes(product.id)
+                              ? "text-primary hover:text-primary"
+                              : "hover:bg-accent hover:text-accent-foreground"
+                          }`}
+                          aria-label={`Save ${product.name} to wishlist`}
+                        >
+                          <Heart size={16} className={wishlistedIds.includes(product.id) ? "fill-current" : ""} />
                         </button>
-                      </motion.div>
+                        <button
+                          onClick={(event) => handleQuickView(event, product.slug)}
+                          className="w-10 h-10 bg-background/90 backdrop-blur-sm flex items-center justify-center hover:bg-accent hover:text-accent-foreground transition-colors"
+                          aria-label={`View ${product.name}`}
+                        >
+                          <Eye size={16} />
+                        </button>
+                      </div>
                     </div>
 
                     {/* Product Info */}

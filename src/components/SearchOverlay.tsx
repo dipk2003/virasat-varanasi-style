@@ -83,7 +83,7 @@ const SearchOverlay = ({ isOpen, onClose }: { isOpen: boolean; onClose: () => vo
                   type="text"
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
-                  placeholder="Search kurtis, fabrics, collections..."
+                  placeholder="Search sarees, kurtis, fabrics..."
                   className="w-full pl-16 pr-14 py-5 bg-background/95 backdrop-blur-sm border border-border font-body text-lg text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-accent transition-colors"
                   onKeyDown={(e) => { if (e.key === "Escape") onClose(); if (e.key === "Enter" && results.length > 0) goToProduct(results[0].slug); }}
                 />
@@ -135,7 +135,7 @@ const SearchOverlay = ({ isOpen, onClose }: { isOpen: boolean; onClose: () => vo
                   <motion.div key="suggestions" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="text-center py-8">
                     <p className="font-ui text-xs tracking-[0.2em] uppercase" style={{ color: "hsl(var(--gold-light))" }}>Popular searches</p>
                     <div className="flex flex-wrap justify-center gap-2 mt-4">
-                      {["Banarasi Silk", "Cotton", "Festive", "Chiffon", "Designer"].map((tag) => (
+                      {["Saree", "Kurti", "Banarasi", "Bridal Saree", "Zari Kurti"].map((tag) => (
                         <button key={tag} onClick={() => setQuery(tag)} className="px-4 py-2 border font-ui text-xs tracking-wider hover:border-accent hover:text-accent transition-colors" style={{ borderColor: "hsl(var(--gold) / 0.3)", color: "hsl(var(--cream-dark))" }}>
                           {tag}
                         </button>

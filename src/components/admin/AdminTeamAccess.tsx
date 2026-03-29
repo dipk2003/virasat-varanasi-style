@@ -43,7 +43,7 @@ const AdminTeamAccess = () => {
 
     const rolesMap = new Map<string, AppRole[]>();
     ((rolesRes.data || []) as Array<{ user_id: string; role: AppRole }>).forEach((entry) => {
-      rolesMap.set(entry.user_id, [...(rolesMap.get(entry.user_id) || []), entry.role]);
+      rolesMap.set(entry.user_id, Array.from(new Set([...(rolesMap.get(entry.user_id) || []), entry.role])));
     });
 
     const nextMembers = ((profilesRes.data || []) as Array<{
@@ -60,7 +60,7 @@ const AdminTeamAccess = () => {
       phone: profile.phone,
       city: profile.city,
       created_at: profile.created_at,
-      roles: rolesMap.get(profile.user_id) || ["user"],
+      roles: rolesMap.get(profile.user_id) || [],
     }));
 
     setMembers(nextMembers);
@@ -115,36 +115,29 @@ const AdminTeamAccess = () => {
 
     setUpdatingUserId(targetUserId);
 
-    const rolesToRemove = targetRole === "user"
-      ? ["admin", "super_admin"]
-      : targetRole === "admin"
-        ? ["super_admin"]
-        : ["admin"];
+    const { error: insertError } = await db
+      .from("user_roles")
+      .upsert(
+        [{ user_id: targetUserId, role: targetRole }],
+        { onConflict: "user_id,role" }
+      );
+
+    if (insertError) {
+      setUpdatingUserId(null);
+      toast({ title: "Error", description: insertError.message, variant: "destructive" });
+      return;
+    }
 
     const { error: deleteError } = await db
       .from("user_roles")
       .delete()
       .eq("user_id", targetUserId)
-      .in("role", rolesToRemove);
-
-    if (deleteError) {
-      setUpdatingUserId(null);
-      toast({ title: "Error", description: deleteError.message, variant: "destructive" });
-      return;
-    }
-
-    const rolesToEnsure = targetRole === "user" ? ["user"] : ["user", targetRole];
-    const { error: insertError } = await db
-      .from("user_roles")
-      .upsert(
-        rolesToEnsure.map((role) => ({ user_id: targetUserId, role })),
-        { onConflict: "user_id,role" }
-      );
+      .neq("role", targetRole);
 
     setUpdatingUserId(null);
 
-    if (insertError) {
-      toast({ title: "Error", description: insertError.message, variant: "destructive" });
+    if (deleteError) {
+      toast({ title: "Error", description: deleteError.message, variant: "destructive" });
       return;
     }
 
@@ -245,14 +238,18 @@ const AdminTeamAccess = () => {
                   </td>
                   <td className="p-4">
                     <div className="flex flex-wrap gap-2">
-                      {member.roles
-                        .slice()
-                        .sort((a, b) => roleOrder.indexOf(a) - roleOrder.indexOf(b))
-                        .map((role) => (
-                          <span key={role} className="px-2 py-1 bg-accent/10 text-accent font-ui text-[10px] tracking-wider uppercase">
-                            {roleLabels[role]}
-                          </span>
-                        ))}
+                      {member.roles.length > 0 ? (
+                        member.roles
+                          .slice()
+                          .sort((a, b) => roleOrder.indexOf(a) - roleOrder.indexOf(b))
+                          .map((role) => (
+                            <span key={role} className="px-2 py-1 bg-accent/10 text-accent font-ui text-[10px] tracking-wider uppercase">
+                              {roleLabels[role]}
+                            </span>
+                          ))
+                      ) : (
+                        <span className="font-body text-xs text-muted-foreground">No role assigned</span>
+                      )}
                     </div>
                   </td>
                   <td className="p-4 font-body text-sm text-muted-foreground">{member.city || "—"}</td>

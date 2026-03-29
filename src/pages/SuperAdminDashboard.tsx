@@ -1,35 +1,29 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
-import {
-  LayoutDashboard,
-  Package,
-  ShoppingCart,
-  Settings,
-  ShieldCheck,
-  Truck,
-  Users,
-} from "lucide-react";
+import { useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import AdminCustomers from "@/components/admin/AdminCustomers";
+import AdminCoupons from "@/components/admin/AdminCoupons";
 import AdminOrders from "@/components/admin/AdminOrders";
+import AdminHomepageBanners from "@/components/admin/AdminHomepageBanners";
+import AdminLogistics from "@/components/admin/AdminLogistics";
 import AdminProducts from "@/components/admin/AdminProducts";
 import AdminSettings from "@/components/admin/AdminSettings";
 import AdminTeamAccess from "@/components/admin/AdminTeamAccess";
-import BusinessConsoleLayout, { BusinessConsoleTab } from "@/components/admin/BusinessConsoleLayout";
+import BusinessConsoleLayout from "@/components/admin/BusinessConsoleLayout";
 import SuperAdminOverview from "@/components/admin/SuperAdminOverview";
+import { businessConsoleConfigs } from "@/lib/businessConsole";
 
-const superAdminTabs: BusinessConsoleTab[] = [
-  { id: "overview", label: "Owner Overview", icon: LayoutDashboard },
-  { id: "team-access", label: "Team & Access", icon: ShieldCheck },
-  { id: "brand-control", label: "Brand Control", icon: Settings },
-  { id: "orders", label: "Orders", icon: ShoppingCart },
-  { id: "customers", label: "Customers", icon: Users },
-  { id: "catalog", label: "Catalog", icon: Package },
-  { id: "logistics", label: "Logistics", icon: Truck },
-];
+type DashboardLocationState = {
+  initialTab?: string;
+};
 
 const SuperAdminDashboard = () => {
-  const [activeTab, setActiveTab] = useState("overview");
+  const config = businessConsoleConfigs["super-admin"];
+  const location = useLocation();
+  const requestedTab = (location.state as DashboardLocationState | null)?.initialTab;
+  const [activeTab, setActiveTab] = useState(
+    requestedTab && config.tabs.some((tab) => tab.id === requestedTab) ? requestedTab : "overview"
+  );
   const { signOut } = useAuth();
   const navigate = useNavigate();
 
@@ -40,10 +34,10 @@ const SuperAdminDashboard = () => {
 
   return (
     <BusinessConsoleLayout
-      badge="Super Admin Control Tower"
-      title="Business Control Tower"
-      subtitle="Sensitive platform controls, owner decisions, and white-label business settings yahan isolate kiye gaye hain."
-      tabs={superAdminTabs}
+      badge={config.badge}
+      title={config.title}
+      subtitle={config.subtitle}
+      tabs={config.tabs}
       activeTab={activeTab}
       onTabChange={setActiveTab}
       onSignOut={handleSignOut}
@@ -51,10 +45,12 @@ const SuperAdminDashboard = () => {
       {activeTab === "overview" && <SuperAdminOverview />}
       {activeTab === "team-access" && <AdminTeamAccess />}
       {activeTab === "brand-control" && <AdminSettings />}
+      {activeTab === "homepage-banners" && <AdminHomepageBanners />}
       {activeTab === "orders" && <AdminOrders />}
+      {activeTab === "coupons" && <AdminCoupons />}
       {activeTab === "customers" && <AdminCustomers />}
-      {activeTab === "catalog" && <AdminProducts />}
-      {activeTab === "logistics" && <AdminSettings />}
+      {activeTab === "catalog" && <AdminProducts portal="super-admin" />}
+      {activeTab === "logistics" && <AdminLogistics />}
     </BusinessConsoleLayout>
   );
 };

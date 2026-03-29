@@ -4,10 +4,11 @@ import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "@/integrations/supabase/client";
 import { useCart } from "@/contexts/CartContext";
 import { useAuth } from "@/contexts/AuthContext";
-import { Heart, ShoppingBag, Star, Minus, Plus, Truck, RotateCcw, Shield, ZoomIn, RotateCw, Ruler, X } from "lucide-react";
+import { Heart, ShoppingBag, Star, Minus, Plus, Truck, RotateCcw, Shield, ZoomIn, RotateCw, Ruler } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import CartDrawer from "@/components/CartDrawer";
 import Footer from "@/components/Footer";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 // Size chart data for Indian kurti sizes
 const sizeChartData = [
@@ -18,6 +19,8 @@ const sizeChartData = [
   { size: "XL", bust: "40", waist: "34", hip: "43", length: "42" },
   { size: "XXL", bust: "42", waist: "36", hip: "45", length: "43" },
 ];
+
+const MIN_360_FRAMES = 6;
 
 // Zoom-on-hover image component
 const ZoomableImage = ({ src, alt }: { src: string; alt: string }) => {
@@ -77,6 +80,12 @@ const View360 = ({ images, productName }: { images: string[]; productName: strin
     }, 200);
     return () => clearInterval(interval);
   }, [autoRotate, isDragging, frameCount]);
+
+  useEffect(() => {
+    setCurrentFrame(0);
+    setIsDragging(false);
+    setAutoRotate(true);
+  }, [images]);
 
   const handleMouseDown = (e: React.MouseEvent) => {
     setIsDragging(true);
@@ -171,75 +180,62 @@ const View360 = ({ images, productName }: { images: string[]; productName: strin
 
 // Size Chart Modal
 const SizeChartModal = ({ isOpen, onClose, sizes }: { isOpen: boolean; onClose: () => void; sizes: string[] }) => (
-  <AnimatePresence>
-    {isOpen && (
-      <>
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-foreground/60 backdrop-blur-sm z-50" onClick={onClose} />
-        <motion.div
-          initial={{ opacity: 0, scale: 0.9, y: 20 }}
-          animate={{ opacity: 1, scale: 1, y: 0 }}
-          exit={{ opacity: 0, scale: 0.9, y: 20 }}
-          transition={{ type: "spring", damping: 25, stiffness: 200 }}
-          className="fixed inset-4 sm:inset-auto sm:top-1/2 sm:left-1/2 sm:-translate-x-1/2 sm:-translate-y-1/2 sm:w-full sm:max-w-lg bg-background border border-border z-50 overflow-auto max-h-[90vh]"
-        >
-          <div className="p-6">
-            <div className="flex items-center justify-between mb-6">
-              <div className="flex items-center gap-2">
-                <Ruler size={20} className="text-accent" />
-                <h3 className="font-display text-xl text-foreground">Size Guide</h3>
-              </div>
-              <button onClick={onClose} className="text-muted-foreground hover:text-foreground transition-colors">
-                <X size={22} />
-              </button>
-            </div>
+  <Dialog open={isOpen} onOpenChange={(open) => { if (!open) onClose(); }}>
+    <DialogContent className="max-h-[90vh] overflow-hidden border-border bg-background p-0 sm:max-w-lg">
+      <div className="overflow-y-auto p-6">
+        <DialogHeader className="mb-6 space-y-3">
+          <DialogTitle className="flex items-center gap-2 font-display text-xl text-foreground">
+            <Ruler size={20} className="text-accent" />
+            <span>Size Guide</span>
+          </DialogTitle>
+          <DialogDescription className="font-body text-sm text-muted-foreground">
+            All measurements are in inches. For the best fit, measure yourself and compare with the chart below.
+          </DialogDescription>
+        </DialogHeader>
 
-            <p className="font-body text-sm text-muted-foreground mb-6">All measurements are in inches. For the best fit, measure yourself and compare with the chart below.</p>
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead>
+              <tr className="border-b border-border">
+                {["Size", "Bust", "Waist", "Hip", "Length"].map((h) => (
+                  <th key={h} className="py-3 px-3 font-ui text-[10px] tracking-[0.2em] uppercase text-muted-foreground text-center">{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {sizeChartData
+                .filter((row) => sizes.length === 0 || sizes.includes(row.size))
+                .map((row, i) => (
+                  <motion.tr
+                    key={row.size}
+                    initial={{ opacity: 0, x: -10 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: i * 0.05 }}
+                    className={`border-b border-border/50 ${sizes.includes(row.size) ? "" : "opacity-50"}`}
+                  >
+                    <td className="py-3 px-3 text-center font-ui text-xs font-semibold text-foreground">{row.size}</td>
+                    <td className="py-3 px-3 text-center font-body text-sm text-muted-foreground">{row.bust}"</td>
+                    <td className="py-3 px-3 text-center font-body text-sm text-muted-foreground">{row.waist}"</td>
+                    <td className="py-3 px-3 text-center font-body text-sm text-muted-foreground">{row.hip}"</td>
+                    <td className="py-3 px-3 text-center font-body text-sm text-muted-foreground">{row.length}"</td>
+                  </motion.tr>
+                ))}
+            </tbody>
+          </table>
+        </div>
 
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b border-border">
-                    {["Size", "Bust", "Waist", "Hip", "Length"].map((h) => (
-                      <th key={h} className="py-3 px-3 font-ui text-[10px] tracking-[0.2em] uppercase text-muted-foreground text-center">{h}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {sizeChartData
-                    .filter((row) => sizes.length === 0 || sizes.includes(row.size))
-                    .map((row, i) => (
-                      <motion.tr
-                        key={row.size}
-                        initial={{ opacity: 0, x: -10 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        transition={{ delay: i * 0.05 }}
-                        className={`border-b border-border/50 ${sizes.includes(row.size) ? "" : "opacity-50"}`}
-                      >
-                        <td className="py-3 px-3 text-center font-ui text-xs font-semibold text-foreground">{row.size}</td>
-                        <td className="py-3 px-3 text-center font-body text-sm text-muted-foreground">{row.bust}"</td>
-                        <td className="py-3 px-3 text-center font-body text-sm text-muted-foreground">{row.waist}"</td>
-                        <td className="py-3 px-3 text-center font-body text-sm text-muted-foreground">{row.hip}"</td>
-                        <td className="py-3 px-3 text-center font-body text-sm text-muted-foreground">{row.length}"</td>
-                      </motion.tr>
-                    ))}
-                </tbody>
-              </table>
-            </div>
-
-            <div className="mt-6 p-4 bg-accent/5 border border-accent/20">
-              <p className="font-ui text-[10px] tracking-wider uppercase text-accent mb-2">How to Measure</p>
-              <ul className="font-body text-xs text-muted-foreground space-y-1">
-                <li>• <strong>Bust:</strong> Measure around the fullest part of your chest</li>
-                <li>• <strong>Waist:</strong> Measure around the narrowest part of your waist</li>
-                <li>• <strong>Hip:</strong> Measure around the widest part of your hips</li>
-                <li>• <strong>Length:</strong> Measure from shoulder to desired kurti length</li>
-              </ul>
-            </div>
-          </div>
-        </motion.div>
-      </>
-    )}
-  </AnimatePresence>
+        <div className="mt-6 border border-accent/20 bg-accent/5 p-4">
+          <p className="mb-2 font-ui text-[10px] tracking-wider uppercase text-accent">How to Measure</p>
+          <ul className="space-y-1 font-body text-xs text-muted-foreground">
+            <li>• <strong>Bust:</strong> Measure around the fullest part of your chest</li>
+            <li>• <strong>Waist:</strong> Measure around the narrowest part of your waist</li>
+            <li>• <strong>Hip:</strong> Measure around the widest part of your hips</li>
+            <li>• <strong>Length:</strong> Measure from shoulder to desired kurti length</li>
+          </ul>
+        </div>
+      </div>
+    </DialogContent>
+  </Dialog>
 );
 
 const ProductDetail = () => {
@@ -281,8 +277,10 @@ const ProductDetail = () => {
 
       if (!data) { setLoading(false); return; }
       setProduct(data);
+      setSelectedImage(0);
       setSelectedSize(data.sizes?.[0] || "");
       setSelectedColor(data.colors?.[0] || "");
+      setViewMode("gallery");
 
       const [reviewsRes, relatedRes, variantsRes] = await Promise.all([
         supabase.from("reviews").select("*").eq("product_id", data.id).eq("is_approved", true).order("created_at", { ascending: false }).limit(10),
@@ -302,6 +300,12 @@ const ProductDetail = () => {
     fetchProduct();
     window.scrollTo(0, 0);
   }, [slug, user]);
+
+  useEffect(() => {
+    if (viewMode === "360" && (product?.images?.length ?? 0) < MIN_360_FRAMES) {
+      setViewMode("gallery");
+    }
+  }, [product?.images, viewMode]);
 
   const handleAddToCart = async () => {
     if (!product) return;
@@ -354,7 +358,9 @@ const ProductDetail = () => {
   }
 
   const discount = displayComparePrice ? Math.round((1 - displayPrice / displayComparePrice) * 100) : 0;
-  const hasMultipleImages = product.images && product.images.length > 1;
+  const imageCount = product.images?.length ?? 0;
+  const hasMultipleImages = imageCount > 1;
+  const has360Frames = imageCount >= MIN_360_FRAMES;
 
   return (
     <div className="min-h-screen bg-background">
@@ -385,7 +391,7 @@ const ProductDetail = () => {
             {/* Image Gallery */}
             <motion.div initial={{ opacity: 0, x: -40 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.6 }}>
               {/* View mode toggle */}
-              {hasMultipleImages && (
+              {has360Frames && (
                 <div className="flex gap-2 mb-4">
                   <button
                     onClick={() => setViewMode("gallery")}

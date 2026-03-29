@@ -127,13 +127,16 @@ export const HorizontalReveal = ({ children, className = "", from = "left" }: { 
 // Zoom reveal - element zooms from far away as you scroll to it
 export const ZoomReveal = ({ children, className = "" }: { children: ReactNode; className?: string }) => {
   const ref = useRef(null);
-  const { scrollYProgress } = useScroll({ target: ref, offset: ["start end", "center center"] });
-  const scale = useTransform(scrollYProgress, [0, 1], [0.3, 1]);
-  const opacity = useTransform(scrollYProgress, [0, 0.5], [0, 1]);
-  const blur = useTransform(scrollYProgress, [0, 0.7], [15, 0]);
-  const springScale = useSpring(scale, { stiffness: 80, damping: 25 });
+  const isInView = useInView(ref, { once: true, margin: "-80px" });
+
   return (
-    <motion.div ref={ref} style={{ scale: springScale, opacity, filter: blur.get() > 0.5 ? `blur(${blur.get()}px)` : "none" }} className={className}>
+    <motion.div
+      ref={ref}
+      initial={{ opacity: 0, scale: 0.94, filter: "blur(10px)" }}
+      animate={isInView ? { opacity: 1, scale: 1, filter: "blur(0px)" } : { opacity: 0, scale: 0.94, filter: "blur(10px)" }}
+      transition={{ duration: 0.38, ease: [0.22, 1, 0.36, 1] }}
+      className={className}
+    >
       {children}
     </motion.div>
   );

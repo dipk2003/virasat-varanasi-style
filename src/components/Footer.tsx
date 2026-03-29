@@ -9,7 +9,7 @@ const Footer = () => {
           <div>
             <img src={logo} alt="Virasat" className="h-16 w-auto mb-4 brightness-200" />
             <p className="font-body text-sm" style={{ color: "hsl(var(--cream-dark))" }}>
-              Heritage woven in every thread. Authentic Banarasi Kurtis crafted by master artisans from Varanasi.
+              Heritage woven in every thread. Premium sarees and kurtis curated for a richer, more luxurious storefront.
             </p>
           </div>
 
@@ -18,7 +18,7 @@ const Footer = () => {
             <h4 className="font-ui text-xs tracking-[0.3em] uppercase mb-6" style={{ color: "hsl(var(--gold))" }}>
               Quick Links
             </h4>
-            {["New Arrivals", "Banarasi Silk", "Cotton Collection", "Festive Wear", "Sale"].map((link) => (
+            {["Premium Sarees", "Premium Kurtis", "360° View Styles", "New Arrivals", "Custom Design"].map((link) => (
               <a
                 key={link}
                 href="#"

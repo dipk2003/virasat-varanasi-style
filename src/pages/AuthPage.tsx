@@ -13,12 +13,6 @@ type AuthLocationState = {
 
 type PortalMode = "customer" | "admin" | "super-admin";
 
-const portalLinks: Array<{ mode: PortalMode; label: string; path: string }> = [
-  { mode: "customer", label: "Customer", path: "/auth" },
-  { mode: "admin", label: "Admin", path: "/admin/login" },
-  { mode: "super-admin", label: "Super Admin", path: "/superadmin" },
-];
-
 const AuthPage = ({ portal = "customer" }: { portal?: PortalMode }) => {
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState("");
@@ -46,14 +40,16 @@ const AuthPage = ({ portal = "customer" }: { portal?: PortalMode }) => {
   };
 
   const buildNextRoute = (roles: AppRole[]) => {
-    const hasAdminAccess = roles.includes("admin") || roles.includes("super_admin");
+    const isSuperAdmin = roles.includes("super_admin");
+    const isAdmin = roles.includes("admin");
+    const hasAdminAccess = isAdmin || isSuperAdmin;
 
     if (redirectTo) {
       if (redirectTo.startsWith("/admin") && !hasAdminAccess) {
         return "/shop";
       }
 
-      if ((redirectTo.startsWith("/super-admin") || redirectTo.startsWith("/superadmin")) && !roles.includes("super_admin")) {
+      if ((redirectTo.startsWith("/super-admin") || redirectTo.startsWith("/superadmin")) && !isSuperAdmin) {
         return hasAdminAccess ? "/admin" : "/shop";
       }
 
@@ -61,14 +57,14 @@ const AuthPage = ({ portal = "customer" }: { portal?: PortalMode }) => {
     }
 
     if (isSuperAdminPortal) {
-      return roles.includes("super_admin") ? "/super-admin" : hasAdminAccess ? "/admin" : "/shop";
+      return isSuperAdmin ? "/super-admin" : isAdmin ? "/admin" : "/shop";
     }
 
     if (isAdminPortal) {
-      return hasAdminAccess ? "/admin" : "/shop";
+      return isSuperAdmin ? "/super-admin" : isAdmin ? "/admin" : "/shop";
     }
 
-    return hasAdminAccess ? "/admin" : "/shop";
+    return isSuperAdmin ? "/super-admin" : isAdmin ? "/admin" : "/shop";
   };
 
   const handleGoogleAuth = async () => {
@@ -164,36 +160,19 @@ const AuthPage = ({ portal = "customer" }: { portal?: PortalMode }) => {
         </div>
 
         {!isBusinessPortal && (
-          <>
-            <div className="mb-6 grid gap-2 grid-cols-1">
-              {portalLinks
-                .filter((portalLink) => portalLink.mode === "customer")
-                .map((portalLink) => (
-                  <Link
-                    key={portalLink.mode}
-                    to={portalLink.path}
-                    state={location.state}
-                    className="border border-accent bg-accent/10 px-3 py-2 text-center font-ui text-[10px] tracking-[0.18em] uppercase text-accent transition-colors"
-                  >
-                    {portalLink.label}
-                  </Link>
-                ))}
-            </div>
-
-            <div className="space-y-3 mb-4">
-              <button
-                type="button"
-                onClick={handleGoogleAuth}
-                disabled={loading}
-                className="w-full py-3 border border-border bg-card text-foreground font-ui text-sm tracking-[0.12em] uppercase hover:border-accent transition-colors disabled:opacity-50"
-              >
-                Continue With Google
-              </button>
-              <p className="text-center font-ui text-[10px] tracking-[0.2em] uppercase text-muted-foreground">
-                Or continue with email
-              </p>
-            </div>
-          </>
+          <div className="space-y-3 mb-4">
+            <button
+              type="button"
+              onClick={handleGoogleAuth}
+              disabled={loading}
+              className="w-full py-3 border border-border bg-card text-foreground font-ui text-sm tracking-[0.12em] uppercase hover:border-accent transition-colors disabled:opacity-50"
+            >
+              Continue With Google
+            </button>
+            <p className="text-center font-ui text-[10px] tracking-[0.2em] uppercase text-muted-foreground">
+              Or continue with email
+            </p>
+          </div>
         )}
 
         {isBusinessPortal && (

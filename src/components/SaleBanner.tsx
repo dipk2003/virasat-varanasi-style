@@ -1,10 +1,41 @@
 import { motion, useInView } from "framer-motion";
 import { useRef } from "react";
 import { Sparkles, Clock } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { HomepageSaleBannerSection } from "@/lib/commerce";
 
-const SaleBanner = () => {
+const isExternalLink = (target: string) =>
+  /^https?:\/\//i.test(target) || target.startsWith("mailto:") || target.startsWith("tel:");
+
+const SaleBanner = ({ content }: { content: HomepageSaleBannerSection }) => {
   const ref = useRef(null);
   const isInView = useInView(ref, { once: true, margin: "-100px" });
+  const navigate = useNavigate();
+
+  const handleBannerClick = () => {
+    const target = content.button_link.trim() || "/shop";
+
+    if (target.startsWith("/#")) {
+      document.getElementById(target.slice(2))?.scrollIntoView({ behavior: "smooth" });
+      return;
+    }
+
+    if (target.startsWith("#")) {
+      document.getElementById(target.slice(1))?.scrollIntoView({ behavior: "smooth" });
+      return;
+    }
+
+    if (isExternalLink(target)) {
+      window.location.assign(target);
+      return;
+    }
+
+    navigate(target);
+  };
+
+  if (!content.enabled) {
+    return null;
+  }
 
   return (
     <section id="sale" className="py-4" ref={ref}>
@@ -28,7 +59,7 @@ const SaleBanner = () => {
               >
                 <Sparkles size={16} style={{ color: "hsl(var(--gold))" }} />
                 <span className="font-ui text-xs tracking-[0.4em] uppercase" style={{ color: "hsl(var(--gold))" }}>
-                  Festival Special
+                  {content.eyebrow}
                 </span>
               </motion.div>
 
@@ -39,7 +70,8 @@ const SaleBanner = () => {
                 className="font-display text-4xl sm:text-5xl lg:text-6xl font-light tracking-wider mb-3"
                 style={{ color: "hsl(var(--cream))" }}
               >
-                Flat <span className="text-gold-gradient">30% Off</span>
+                {content.title_prefix ? `${content.title_prefix} ` : ""}
+                <span className="text-gold-gradient">{content.title_highlight}</span>
               </motion.h2>
 
               <motion.p
@@ -49,7 +81,7 @@ const SaleBanner = () => {
                 className="font-body text-lg"
                 style={{ color: "hsl(var(--cream-dark))" }}
               >
-                On our entire Banarasi Silk Kurti Collection. Limited stock available.
+                {content.description}
               </motion.p>
             </div>
 
@@ -62,14 +94,14 @@ const SaleBanner = () => {
               {/* Countdown */}
               <div className="flex items-center gap-2 mb-2" style={{ color: "hsl(var(--gold-light))" }}>
                 <Clock size={14} />
-                <span className="font-ui text-xs tracking-[0.2em] uppercase">Offer Ends In</span>
+                <span className="font-ui text-xs tracking-[0.2em] uppercase">{content.countdown_label}</span>
               </div>
               <div className="flex gap-3">
                 {[
-                  { value: "02", label: "Days" },
-                  { value: "14", label: "Hours" },
-                  { value: "36", label: "Mins" },
-                  { value: "52", label: "Secs" },
+                  { value: content.countdown_days, label: "Days" },
+                  { value: content.countdown_hours, label: "Hours" },
+                  { value: content.countdown_minutes, label: "Mins" },
+                  { value: content.countdown_seconds, label: "Secs" },
                 ].map((item) => (
                   <div
                     key={item.label}
@@ -86,12 +118,13 @@ const SaleBanner = () => {
                 ))}
               </div>
 
-              <a
-                href="#"
+              <button
+                type="button"
+                onClick={handleBannerClick}
                 className="mt-4 px-10 py-3 bg-accent text-accent-foreground font-ui text-sm tracking-[0.2em] uppercase hover:bg-gold-dark transition-colors duration-300"
               >
-                Shop The Sale
-              </a>
+                {content.button_label}
+              </button>
             </motion.div>
           </div>
         </div>

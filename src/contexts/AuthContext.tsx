@@ -8,6 +8,7 @@ interface AuthContextType {
   session: Session | null;
   loading: boolean;
   roles: AppRole[];
+  isCustomer: boolean;
   isAdmin: boolean;
   isSuperAdmin: boolean;
   signOut: () => Promise<void>;
@@ -18,6 +19,7 @@ const AuthContext = createContext<AuthContextType>({
   session: null,
   loading: true,
   roles: [],
+  isCustomer: false,
   isAdmin: false,
   isSuperAdmin: false,
   signOut: async () => {},
@@ -28,7 +30,8 @@ export const useAuth = () => useContext(AuthContext);
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [authLoading, setAuthLoading] = useState(true);
+  const [rolesLoading, setRolesLoading] = useState(true);
   const [roles, setRoles] = useState<AppRole[]>([]);
 
   useEffect(() => {
@@ -39,7 +42,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
       setSession(nextSession);
       setUser(nextSession?.user ?? null);
-      setLoading(false);
+      setRolesLoading(Boolean(nextSession?.user));
+      setAuthLoading(false);
     };
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, nextSession) => {
@@ -68,8 +72,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const loadRoles = async () => {
       if (!user?.id) {
         setRoles([]);
+        setRolesLoading(false);
         return;
       }
+
+      setRolesLoading(true);
 
       const { data, error } = await supabase
         .from("user_roles")
@@ -80,6 +87,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
       if (error) {
         setRoles([]);
+        setRolesLoading(false);
         return;
       }
 
@@ -92,6 +100,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       );
 
       setRoles(nextRoles);
+      setRolesLoading(false);
     };
 
     void loadRoles();
@@ -105,11 +114,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     await supabase.auth.signOut();
   };
 
+  const loading = authLoading || rolesLoading;
+  const isCustomer = roles.includes("user");
   const isSuperAdmin = roles.includes("super_admin");
   const isAdmin = isSuperAdmin || roles.includes("admin");
 
   return (
-    <AuthContext.Provider value={{ user, session, loading, roles, isAdmin, isSuperAdmin, signOut }}>
+    <AuthContext.Provider value={{ user, session, loading, roles, isCustomer, isAdmin, isSuperAdmin, signOut }}>
       {children}
     </AuthContext.Provider>
   );

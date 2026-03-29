@@ -26,6 +26,8 @@ const supabase = createClient(supabaseUrl, serviceRoleKey, {
   },
 });
 
+const allRoles = ["user", "admin", "super_admin"];
+
 const ensureBootstrapAdminConfig = async (email) => {
   const { error } = await supabase.from("admin_bootstrap_settings").upsert(
     {
@@ -78,11 +80,20 @@ const ensureProfile = async (userId, fullName) => {
 };
 
 const ensureAdminRole = async (userId) => {
-  const { error } = await supabase
+  const { error: insertError } = await supabase
     .from("user_roles")
     .upsert({ user_id: userId, role: "admin" }, { onConflict: "user_id,role", ignoreDuplicates: true });
 
-  if (error) throw error;
+  if (insertError) throw insertError;
+
+  const rolesToRemove = allRoles.filter((role) => role !== "admin");
+  const { error: deleteError } = await supabase
+    .from("user_roles")
+    .delete()
+    .eq("user_id", userId)
+    .in("role", rolesToRemove);
+
+  if (deleteError) throw deleteError;
 };
 
 const main = async () => {

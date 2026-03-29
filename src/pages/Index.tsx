@@ -1,5 +1,4 @@
 import { useNavigate } from "react-router-dom";
-import { useCart } from "@/contexts/CartContext";
 import Navbar from "@/components/Navbar";
 import HeroSection from "@/components/HeroSection";
 import CategoriesSection from "@/components/CategoriesSection";
@@ -21,16 +20,39 @@ import {
   AnimatedCounter,
   ScrollFade,
 } from "@/components/AnimationUtils";
-import { motion, useScroll, useTransform } from "framer-motion";
+import { motion } from "framer-motion";
 import { useRef, useState } from "react";
 import { Sparkles, Award, Users, Package } from "lucide-react";
+import { useHomepageContent } from "@/hooks/use-homepage-content";
 
 const Index = () => {
   const navigate = useNavigate();
   const [searchOpen, setSearchOpen] = useState(false);
+  const homepageContent = useHomepageContent();
 
   // Full page scroll progress for cinematic transitions
   const containerRef = useRef(null);
+
+  const handleHomepageCtaClick = () => {
+    const target = homepageContent.collection_cta.button_link.trim() || "/shop";
+
+    if (target.startsWith("/#")) {
+      document.getElementById(target.slice(2))?.scrollIntoView({ behavior: "smooth" });
+      return;
+    }
+
+    if (target.startsWith("#")) {
+      document.getElementById(target.slice(1))?.scrollIntoView({ behavior: "smooth" });
+      return;
+    }
+
+    if (/^https?:\/\//i.test(target) || target.startsWith("mailto:") || target.startsWith("tel:")) {
+      window.location.assign(target);
+      return;
+    }
+
+    navigate(target);
+  };
 
   return (
     <motion.div
@@ -48,7 +70,7 @@ const Index = () => {
       <CartDrawer />
       <SearchOverlay isOpen={searchOpen} onClose={() => setSearchOpen(false)} />
 
-      <HeroSection />
+      <HeroSection content={homepageContent.hero_banner} />
 
       {/* Cinematic brand statement with split reveal */}
       <section className="py-24 bg-foreground relative overflow-hidden">
@@ -96,69 +118,71 @@ const Index = () => {
 
       {/* Sale Banner with horizontal reveal */}
       <HorizontalReveal from="left">
-        <SaleBanner />
+        <SaleBanner content={homepageContent.sale_banner} />
       </HorizontalReveal>
 
       {/* New Arrivals with zoom effect */}
       <NewArrivals />
 
-      {/* Cinematic testimonial with parallax layers */}
-      <section className="relative py-32 overflow-hidden">
-        <div className="absolute inset-0 bg-maroon-gradient" />
-        <FloatingParticles count={25} />
+      {homepageContent.testimonial_banner.enabled && (
+        <section className="relative py-32 overflow-hidden">
+          <div className="absolute inset-0 bg-maroon-gradient" />
+          <FloatingParticles count={25} />
 
-        <div className="container mx-auto px-4 relative z-10">
-          <ScrollFade>
-            <div className="max-w-4xl mx-auto text-center">
-              <ZoomReveal>
-                <p className="font-ui text-xs tracking-[0.5em] uppercase mb-6" style={{ color: "hsl(var(--gold))" }}>
-                  Voices of Our Patrons
-                </p>
-                <blockquote className="font-display text-3xl sm:text-5xl font-light italic leading-relaxed mb-8" style={{ color: "hsl(var(--cream))" }}>
-                  "The moment I wore my Virasat kurti, I felt like I was draped in history itself."
-                </blockquote>
-                <div className="gold-divider w-20 mx-auto mb-4" />
-                <p className="font-body text-base" style={{ color: "hsl(var(--cream-dark) / 0.7)" }}>
-                  — Priya Sharma, New Delhi
-                </p>
-              </ZoomReveal>
-            </div>
-          </ScrollFade>
-        </div>
-      </section>
+          <div className="container mx-auto px-4 relative z-10">
+            <ScrollFade>
+              <div className="max-w-4xl mx-auto text-center">
+                <ZoomReveal>
+                  <p className="font-ui text-xs tracking-[0.5em] uppercase mb-6" style={{ color: "hsl(var(--gold))" }}>
+                    {homepageContent.testimonial_banner.eyebrow}
+                  </p>
+                  <blockquote className="font-display text-3xl sm:text-5xl font-light italic leading-relaxed mb-8" style={{ color: "hsl(var(--cream))" }}>
+                    {homepageContent.testimonial_banner.quote}
+                  </blockquote>
+                  <div className="gold-divider w-20 mx-auto mb-4" />
+                  <p className="font-body text-base" style={{ color: "hsl(var(--cream-dark) / 0.7)" }}>
+                    {homepageContent.testimonial_banner.author}
+                  </p>
+                </ZoomReveal>
+              </div>
+            </ScrollFade>
+          </div>
+        </section>
+      )}
 
-      {/* Full-width dramatic CTA */}
-      <section className="py-32 bg-card relative overflow-hidden">
-        <div className="absolute inset-0 pointer-events-none">
-          <motion.div
-            className="absolute w-[600px] h-[600px] rounded-full opacity-[0.04]"
-            style={{ background: "radial-gradient(circle, hsl(var(--gold)), transparent)", left: "50%", top: "50%", x: "-50%", y: "-50%" }}
-            animate={{ scale: [1, 1.3, 1], rotate: [0, 180, 360] }}
-            transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
-          />
-        </div>
-        <div className="container mx-auto px-4 text-center relative z-10">
-          <ZoomReveal>
-            <p className="font-ui text-xs tracking-[0.5em] uppercase text-muted-foreground mb-4">
-              Discover Your Style
-            </p>
-            <h2 className="font-display text-4xl sm:text-6xl font-light text-foreground mb-6">
-              <TextReveal text="Browse Our Full Collection" />
-            </h2>
-            <p className="font-body text-xl text-muted-foreground max-w-xl mx-auto mb-10">
-              From everyday elegance to festive grandeur — find the perfect kurti for every occasion.
-            </p>
-            <motion.button
-              whileHover={{ scale: 1.08, boxShadow: "0 0 40px hsl(var(--gold) / 0.3)" }}
-              whileTap={{ scale: 0.97 }}
-              onClick={() => navigate("/shop")}
-              className="px-14 py-5 bg-accent text-accent-foreground font-ui text-sm tracking-[0.25em] uppercase hover:bg-gold-dark transition-colors duration-300"
-            >
-              Shop All Products
-            </motion.button>
-          </ZoomReveal>
-        </div>
-      </section>
+      {homepageContent.collection_cta.enabled && (
+        <section className="py-32 bg-card relative overflow-hidden">
+          <div className="absolute inset-0 pointer-events-none">
+            <motion.div
+              className="absolute w-[600px] h-[600px] rounded-full opacity-[0.04]"
+              style={{ background: "radial-gradient(circle, hsl(var(--gold)), transparent)", left: "50%", top: "50%", x: "-50%", y: "-50%" }}
+              animate={{ scale: [1, 1.3, 1], rotate: [0, 180, 360] }}
+              transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
+            />
+          </div>
+          <div className="container mx-auto px-4 text-center relative z-10">
+            <ZoomReveal>
+              <p className="font-ui text-xs tracking-[0.5em] uppercase text-muted-foreground mb-4">
+                {homepageContent.collection_cta.eyebrow}
+              </p>
+              <h2 className="font-display text-4xl sm:text-6xl font-light text-foreground mb-6">
+                <TextReveal text={homepageContent.collection_cta.title} />
+              </h2>
+              <p className="font-body text-xl text-muted-foreground max-w-xl mx-auto mb-10">
+                {homepageContent.collection_cta.description}
+              </p>
+              <motion.button
+                whileHover={{ scale: 1.08, boxShadow: "0 0 40px hsl(var(--gold) / 0.3)" }}
+                whileTap={{ scale: 0.97 }}
+                onClick={handleHomepageCtaClick}
+                className="px-14 py-5 bg-accent text-accent-foreground font-ui text-sm tracking-[0.25em] uppercase hover:bg-gold-dark transition-colors duration-300"
+              >
+                {homepageContent.collection_cta.button_label}
+              </motion.button>
+            </ZoomReveal>
+          </div>
+        </section>
+      )}
 
       <CustomDesignBanner />
       <Footer />

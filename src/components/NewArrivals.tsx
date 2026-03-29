@@ -1,50 +1,250 @@
 import { motion, useInView } from "framer-motion";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Heart, ShoppingBag, Eye } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { useCart } from "@/contexts/CartContext";
+import { useAuth } from "@/contexts/AuthContext";
+import { useToast } from "@/hooks/use-toast";
 import categorySilk from "@/assets/category-silk.jpg";
 import categoryCotton from "@/assets/category-cotton.jpg";
 import categoryFestive from "@/assets/category-festive.jpg";
 import categoryDesigner from "@/assets/category-designer.jpg";
 
-const products = [
+const CATALOG_EVENT_KEY = "catalog-updated-at";
+
+type ArrivalProduct = {
+  id?: string;
+  slug: string;
+  name: string;
+  price: number;
+  compare_at_price?: number | null;
+  image?: string;
+  images?: string[] | null;
+  sizes?: string[] | null;
+  colors?: string[] | null;
+  tag?: string;
+  is_featured?: boolean;
+};
+
+const fallbackProducts: ArrivalProduct[] = [
   {
+    slug: "gulnaar-zari-anarkali",
     name: "Zari Brocade Kurti",
-    price: "₹4,999",
-    originalPrice: "₹6,999",
+    price: 4999,
+    compare_at_price: 6999,
     image: categorySilk,
     tag: "Bestseller",
-    discount: "30% Off",
   },
   {
+    slug: "ivory-chikankari-kurta-set",
     name: "Ivory Chikankari",
-    price: "₹3,499",
-    originalPrice: null,
+    price: 3499,
+    compare_at_price: null,
     image: categoryCotton,
     tag: "New",
-    discount: null,
   },
   {
+    slug: "bridal-kadwa-red-saree",
     name: "Bridal Red Silk",
-    price: "₹7,999",
-    originalPrice: "₹10,999",
+    price: 7999,
+    compare_at_price: 10999,
     image: categoryFestive,
     tag: "Limited",
-    discount: "27% Off",
   },
   {
+    slug: "teal-kalamkari-fusion-kurti",
     name: "Teal Kalamkari Fusion",
-    price: "₹3,999",
-    originalPrice: null,
+    price: 3999,
+    compare_at_price: null,
     image: categoryDesigner,
     tag: "New",
-    discount: null,
   },
 ];
 
 const NewArrivals = () => {
   const ref = useRef(null);
   const isInView = useInView(ref, { once: true, margin: "-100px" });
-  const [hoveredIdx, setHoveredIdx] = useState<number | null>(null);
+  const [products, setProducts] = useState<ArrivalProduct[]>(fallbackProducts);
+  const [wishlistedIds, setWishlistedIds] = useState<string[]>([]);
+  const navigate = useNavigate();
+  const { addToCart, setIsCartOpen } = useCart();
+  const { user } = useAuth();
+  const { toast } = useToast();
+
+  useEffect(() => {
+    let active = true;
+
+    const fetchProducts = async () => {
+      const { data, error } = await supabase
+        .from("products")
+        .select("id, slug, name, price, compare_at_price, images, sizes, colors, is_featured")
+        .eq("is_active", true)
+        .order("is_featured", { ascending: false })
+        .order("created_at", { ascending: false })
+        .limit(4);
+
+      if (!active || error || !data || data.length === 0) {
+        return;
+      }
+
+      setProducts(data as ArrivalProduct[]);
+    };
+
+    const handleFocus = () => {
+      void fetchProducts();
+    };
+
+    const handleVisibility = () => {
+      if (document.visibilityState === "visible") {
+        void fetchProducts();
+      }
+    };
+
+    const handleStorage = (event: StorageEvent) => {
+      if (event.key === CATALOG_EVENT_KEY) {
+        void fetchProducts();
+      }
+    };
+
+    void fetchProducts();
+
+    window.addEventListener("focus", handleFocus);
+    window.addEventListener("storage", handleStorage);
+    document.addEventListener("visibilitychange", handleVisibility);
+
+    return () => {
+      active = false;
+      window.removeEventListener("focus", handleFocus);
+      window.removeEventListener("storage", handleStorage);
+      document.removeEventListener("visibilitychange", handleVisibility);
+    };
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+
+    const fetchWishlist = async () => {
+      if (!user?.id || products.length === 0) {
+        if (active) setWishlistedIds([]);
+        return;
+      }
+
+      const productIds = products
+        .map((product) => product.id)
+        .filter((productId): productId is string => typeof productId === "string" && productId.length > 0);
+
+      if (productIds.length === 0) {
+        if (active) setWishlistedIds([]);
+        return;
+      }
+
+      const { data, error } = await supabase
+        .from("wishlist")
+        .select("product_id")
+        .eq("user_id", user.id)
+        .in("product_id", productIds);
+
+      if (!active) return;
+
+      if (error) {
+        setWishlistedIds([]);
+        return;
+      }
+
+      setWishlistedIds(
+        ((data || []) as Array<{ product_id: string | null }>)
+          .map((entry) => entry.product_id)
+          .filter((productId): productId is string => Boolean(productId))
+      );
+    };
+
+    void fetchWishlist();
+
+    return () => {
+      active = false;
+    };
+  }, [products, user?.id]);
+
+  const requestSignIn = (productSlug: string) => {
+    toast({
+      title: "Sign in required",
+      description: "Please sign in first to save items to your wishlist.",
+    });
+
+    navigate("/auth", {
+      state: {
+        redirectTo: `/product/${productSlug}`,
+      },
+    });
+  };
+
+  const handleOpenProduct = (productSlug: string) => {
+    navigate(`/product/${productSlug}`);
+  };
+
+  const handleAddToBag = async (event: React.MouseEvent<HTMLButtonElement>, product: ArrivalProduct) => {
+    event.stopPropagation();
+
+    if (!product.id) {
+      navigate(`/product/${product.slug}`);
+      return;
+    }
+
+    await addToCart(product.id, product.sizes?.[0], product.colors?.[0]);
+    setIsCartOpen(true);
+  };
+
+  const handleWishlistToggle = async (event: React.MouseEvent<HTMLButtonElement>, product: ArrivalProduct) => {
+    event.stopPropagation();
+
+    if (!product.id) {
+      navigate(`/product/${product.slug}`);
+      return;
+    }
+
+    if (!user) {
+      requestSignIn(product.slug);
+      return;
+    }
+
+    const isWishlisted = wishlistedIds.includes(product.id);
+
+    if (isWishlisted) {
+      const { error } = await supabase
+        .from("wishlist")
+        .delete()
+        .eq("user_id", user.id)
+        .eq("product_id", product.id);
+
+      if (error) {
+        toast({
+          title: "Wishlist update failed",
+          description: error.message,
+          variant: "destructive",
+        });
+        return;
+      }
+
+      setWishlistedIds((current) => current.filter((productId) => productId !== product.id));
+      return;
+    }
+
+    const { error } = await supabase
+      .from("wishlist")
+      .insert({ user_id: user.id, product_id: product.id });
+
+    if (error) {
+      toast({
+        title: "Wishlist update failed",
+        description: error.message,
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setWishlistedIds((current) => [...current, product.id as string]);
+  };
 
   return (
     <section id="new-arrivals" className="py-24 bg-card" ref={ref}>
@@ -72,13 +272,12 @@ const NewArrivals = () => {
               animate={isInView ? { opacity: 1, y: 0 } : {}}
               transition={{ duration: 0.7, delay: i * 0.12 }}
               className="group cursor-pointer"
-              onMouseEnter={() => setHoveredIdx(i)}
-              onMouseLeave={() => setHoveredIdx(null)}
+              onClick={() => handleOpenProduct(product.slug)}
             >
               {/* Image */}
               <div className="relative overflow-hidden mb-4 aspect-[3/4]">
                 <img
-                  src={product.image}
+                  src={product.images?.[0] || product.image}
                   alt={product.name}
                   className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
                 />
@@ -99,33 +298,33 @@ const NewArrivals = () => {
                 )}
 
                 {/* Discount badge */}
-                {product.discount && (
+                {product.compare_at_price && (
                   <span className="absolute top-3 right-3 px-2 py-1 bg-primary text-primary-foreground font-ui text-[10px] tracking-wider">
-                    {product.discount}
+                    {Math.round((1 - product.price / product.compare_at_price) * 100)}% Off
                   </span>
                 )}
 
                 {/* Hover actions */}
-                <motion.div
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={hoveredIdx === i ? { opacity: 1, y: 0 } : { opacity: 0, y: 20 }}
-                  transition={{ duration: 0.3 }}
-                  className="absolute bottom-3 left-3 right-3 flex justify-center gap-2"
-                >
+                <div className="absolute bottom-3 left-3 right-3 flex justify-center gap-2 opacity-100 transition-all duration-300 sm:translate-y-3 sm:opacity-0 sm:group-hover:translate-y-0 sm:group-hover:opacity-100">
                   {[
-                    { icon: Heart, label: "Wishlist" },
-                    { icon: ShoppingBag, label: "Add to Cart" },
-                    { icon: Eye, label: "Quick View" },
+                    { icon: Heart, label: "Wishlist", onClick: (event: React.MouseEvent<HTMLButtonElement>) => void handleWishlistToggle(event, product) },
+                    { icon: ShoppingBag, label: "Add to Cart", onClick: (event: React.MouseEvent<HTMLButtonElement>) => void handleAddToBag(event, product) },
+                    { icon: Eye, label: "Quick View", onClick: (event: React.MouseEvent<HTMLButtonElement>) => { event.stopPropagation(); handleOpenProduct(product.slug); } },
                   ].map((action) => (
                     <button
                       key={action.label}
+                      onClick={action.onClick}
                       className="w-10 h-10 bg-background/90 backdrop-blur-sm flex items-center justify-center hover:bg-accent hover:text-accent-foreground transition-colors duration-200"
                       title={action.label}
+                      aria-label={`${action.label} ${product.name}`}
                     >
-                      <action.icon size={16} />
+                      <action.icon
+                        size={16}
+                        className={action.label === "Wishlist" && product.id && wishlistedIds.includes(product.id) ? "fill-current text-primary" : ""}
+                      />
                     </button>
                   ))}
-                </motion.div>
+                </div>
               </div>
 
               {/* Info */}
@@ -135,11 +334,11 @@ const NewArrivals = () => {
                 </h3>
                 <div className="flex items-center justify-center gap-2">
                   <span className="font-ui text-sm font-semibold text-foreground">
-                    {product.price}
+                    ₹{product.price.toLocaleString("en-IN")}
                   </span>
-                  {product.originalPrice && (
+                  {product.compare_at_price && (
                     <span className="font-ui text-sm text-muted-foreground line-through">
-                      {product.originalPrice}
+                      ₹{product.compare_at_price.toLocaleString("en-IN")}
                     </span>
                   )}
                 </div>
@@ -154,12 +353,13 @@ const NewArrivals = () => {
           transition={{ delay: 1, duration: 0.6 }}
           className="text-center mt-12"
         >
-          <a
-            href="#"
+          <button
+            type="button"
+            onClick={() => navigate("/shop")}
             className="inline-block px-10 py-4 border border-foreground text-foreground font-ui text-sm tracking-[0.2em] uppercase hover:bg-foreground hover:text-background transition-all duration-300"
           >
             View All Products
-          </a>
+          </button>
         </motion.div>
       </div>
     </section>
