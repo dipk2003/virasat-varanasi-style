@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import heroBanner from "@/assets/hero-banner.jpg";
 import { MagneticButton } from "@/components/AnimationUtils";
 import { HomepageHeroBannerSection } from "@/lib/commerce";
+import { CinematicScene } from "@/components/cinematic/Cinematic";
 
 const isExternalTarget = (target: string) =>
   /^https?:\/\//i.test(target) || target.startsWith("mailto:") || target.startsWith("tel:");
@@ -57,6 +58,7 @@ const HeroSection = ({ content }: { content: HomepageHeroBannerSection }) => {
         <div className="absolute inset-0 bg-hero-gradient" />
       </motion.div>
 
+      <CinematicScene preset="silk" />
       <div className="absolute inset-0 pointer-events-none">
         {[...Array(6)].map((_, index) => (
           <motion.div

@@ -17,6 +17,7 @@ import ProductDetail from "./pages/ProductDetail";
 import Checkout from "./pages/Checkout";
 import StorefrontInfoPage from "./pages/StorefrontInfoPage";
 import NotFound from "./pages/NotFound";
+import CinematicRoute from "@/components/cinematic/CinematicRoute";
 
 const queryClient = new QueryClient();
 
@@ -63,6 +64,7 @@ const App = () => (
       <Toaster />
       <Sonner />
       <BrowserRouter>
+        <CinematicRoute accent="#d4a640" />
         <AuthProvider>
           <CartProvider>
             <AnimatePresence mode="wait">
