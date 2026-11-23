@@ -24,6 +24,7 @@ import { motion } from "framer-motion";
 import { useRef, useState } from "react";
 import { Sparkles, Award, Users, Package } from "lucide-react";
 import { useHomepageContent } from "@/hooks/use-homepage-content";
+import CinematicStory from "@/components/cinematic/CinematicStory";
 
 const Index = () => {
   const navigate = useNavigate();
@@ -71,6 +72,7 @@ const Index = () => {
       <SearchOverlay isOpen={searchOpen} onClose={() => setSearchOpen(false)} />
 
       <HeroSection content={homepageContent.hero_banner} />
+      <CinematicStory world="saree" accent="#d4a640" label="Walk into the Virasat store" />
 
       {/* Cinematic brand statement with split reveal */}
       <section className="py-24 bg-foreground relative overflow-hidden">
